@@ -1,0 +1,9 @@
+[
+  { "id": "large-concrete-planter", "box": [0.0, 0.715, 0.078, 0.935] },
+  { "id": "hibiscus-shrub", "box": [0.0, 0.32, 0.145, 0.75] },
+  { "id": "potted-leafy-plant", "box": [0.508, 0.55, 0.557, 0.69] },
+  { "id": "brass-wall-lantern", "box": [0.172, 0.07, 0.232, 0.255] },
+  { "id": "street-lamp-post", "box": [0.57, 0.0, 0.66, 0.665] },
+  { "id": "striped-road-barrier", "box": [0.752, 0.515, 0.795, 0.575] },
+  { "id": "yield-sign", "box": [0.897, 0.46, 0.913, 0.53] }
+]

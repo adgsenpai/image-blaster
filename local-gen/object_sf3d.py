@@ -1,0 +1,124 @@
+"""Local single-object 3D generation: crop -> BiRefNet cutout -> Stable Fast 3D.
+
+Writes indexed outputs into worlds/<world>/output/<object-id>/ using the same
+convention as generate-single-asset.mjs:
+
+  N-<id>.png                      reference cutout (RGBA)
+  N-<id>.glb                      textured mesh
+  .N-<id>-image-request.json
+  .N-<id>-model-request.json
+
+Needs HF_TOKEN with access to stabilityai/stable-fast-3d.
+"""
+import argparse
+import json
+import os
+import re
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+SF3D_DIR = Path.home() / ".cache/image-blaster-local/sf3d"
+sys.path.insert(0, str(SF3D_DIR))
+
+import rembg  # noqa: E402
+import torch  # noqa: E402
+from PIL import Image  # noqa: E402
+from sf3d.system import SF3D  # noqa: E402
+from sf3d.utils import resize_foreground  # noqa: E402
+
+
+def next_index(directory: Path, slug: str) -> int:
+    pat = re.compile(rf"^\.?(\d+)-{re.escape(slug)}[.-]")
+    idx = [int(m.group(1)) for p in directory.iterdir() if (m := pat.match(p.name))]
+    return max(idx, default=-1) + 1
+
+
+def now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def crop(img: Image.Image, box, pad=0.12, min_side=1024):
+    w, h = img.size
+    x0, y0, x1, y1 = box[0] * w, box[1] * h, box[2] * w, box[3] * h
+    bw, bh = x1 - x0, y1 - y0
+    x0, y0 = max(0, x0 - bw * pad), max(0, y0 - bh * pad)
+    x1, y1 = min(w, x1 + bw * pad), min(h, y1 + bh * pad)
+    c = img.crop((int(x0), int(y0), int(x1), int(y1)))
+    scale = min_side / max(c.size)
+    if scale > 1:
+        c = c.resize((round(c.width * scale), round(c.height * scale)), Image.LANCZOS)
+    return c
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--repo-root", required=True)
+    ap.add_argument("--world", required=True)
+    ap.add_argument("--image", required=True, help="scene image, relative to repo root")
+    ap.add_argument("--jobs", required=True, help="JSON file: [{id, box:[x0,y0,x1,y1] fractions}]")
+    ap.add_argument("--only", nargs="*", help="limit to these object ids")
+    ap.add_argument("--texture-resolution", type=int, default=1024)
+    ap.add_argument("--foreground-ratio", type=float, default=0.85)
+    a = ap.parse_args()
+
+    root = Path(a.repo_root)
+    scene = Image.open(root / a.image).convert("RGB")
+    jobs = json.loads(Path(a.jobs).read_text())
+    if a.only:
+        jobs = [j for j in jobs if j["id"] in a.only]
+
+    session = rembg.new_session("birefnet-general")
+    model = SF3D.from_pretrained(
+        "stabilityai/stable-fast-3d", config_name="config.yaml", weight_name="model.safetensors"
+    )
+    model.to("cuda").eval()
+
+    results = []
+    for job in jobs:
+        oid = job["id"]
+        out_dir = root / "worlds" / a.world / "output" / oid
+        out_dir.mkdir(parents=True, exist_ok=True)
+        n = next_index(out_dir, oid)
+        t0 = time.time()
+
+        cut = rembg.remove(crop(scene, job["box"]), session=session)
+        ref = resize_foreground(cut, a.foreground_ratio)
+        ref_path = out_dir / f"{n}-{oid}.png"
+        ref.save(ref_path)
+        (out_dir / f".{n}-{oid}-image-request.json").write_text(json.dumps({
+            "schema_version": 1, "provider": "local", "scope": "image",
+            "model": "crop + rembg birefnet-general", "world": a.world, "object_id": oid,
+            "input_image": a.image, "box": job["box"],
+            "output": str(ref_path.relative_to(root)), "created_at": now(),
+        }, indent=2) + "\n")
+
+        torch.cuda.reset_peak_memory_stats()
+        with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            mesh, _ = model.run_image(
+                ref, bake_resolution=a.texture_resolution, remesh="none", vertex_count=-1
+            )
+        glb = out_dir / f"{n}-{oid}.glb"
+        mesh.export(glb, include_normals=True)
+        peak = torch.cuda.max_memory_allocated() / 2**20
+        (out_dir / f".{n}-{oid}-model-request.json").write_text(json.dumps({
+            "schema_version": 1, "provider": "local", "scope": "model",
+            "model": "stabilityai/stable-fast-3d", "world": a.world, "object_id": oid,
+            "reference_image": str(ref_path.relative_to(root)),
+            "texture_resolution": a.texture_resolution,
+            "output": str(glb.relative_to(root)), "peak_vram_mb": round(peak),
+            "seconds": round(time.time() - t0, 1), "created_at": now(),
+        }, indent=2) + "\n")
+        r = {"id": oid, "glb": str(glb.relative_to(root)), "peak_vram_mb": round(peak),
+             "seconds": round(time.time() - t0, 1)}
+        print(json.dumps(r), flush=True)
+        results.append(r)
+        torch.cuda.empty_cache()
+
+    print(json.dumps({"done": len(results)}))
+
+
+if __name__ == "__main__":
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    main()
