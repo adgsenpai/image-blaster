@@ -56,7 +56,9 @@ const skyVertex = /* glsl */ `
 
 const skyFragment = /* glsl */ `
   uniform sampler2D uPano;
+  uniform sampler2D uMask;
   uniform float uHasPano;
+  uniform float uHasMask;
   uniform float uPanoYaw;
   uniform vec3 uForward;
   uniform vec3 uFog;
@@ -97,14 +99,21 @@ const skyFragment = /* glsl */ `
     vec3 cloudCol = mix(uGlow * 1.25, uZenith * 1.6, h);
     sky = mix(sky, cloudCol, cover * 0.85);
 
-    // Real skyline (Table Mountain + city lights) from the photo-composited pano,
-    // only above the horizon and only down the street.
+    // Real sky from the World Labs pano wherever its sky mask says sky, plus the
+    // photo-composited Table Mountain skyline down the street.
     if (uHasPano > 0.5) {
-      float elevMask = smoothstep(0.03, 0.09, elev) * (1.0 - smoothstep(0.55, 0.75, elev));
+      float c = cos(uPanoYaw), s = sin(uPanoYaw);
+      vec3 pd = vec3(c * dir.x + s * dir.z, dir.y, -s * dir.x + c * dir.z);
+      vec2 puv = vec2(atan(pd.z, pd.x) / (2.0 * PI) + 0.5, asin(clamp(pd.y, -1.0, 1.0)) / PI + 0.5);
+      float skyMask = uHasMask > 0.5 ? texture2D(uMask, puv).r : 0.0;
+      float elevMask = smoothstep(0.03, 0.09, elev);
       float az = acos(clamp(dot(normalize(dir.xz), normalize(uForward.xz)), -1.0, 1.0));
       float azMask = 1.0 - smoothstep(0.5, 0.75, az);
+      // World Labs' invented rear view has artefacts: use its sky only in front/sides.
+      float front = 1.0 - smoothstep(1.55, 1.95, az);
+      float w = max(skyMask * front, elevMask * azMask);
       vec3 pano = samplePano(dir) * 1.15;
-      sky = mix(sky, pano, elevMask * azMask);
+      sky = mix(sky, pano, w);
     }
 
     // Distance haze at the horizon matches the scene fog, so buildings melt into it.
@@ -116,13 +125,15 @@ const skyFragment = /* glsl */ `
   }
 `
 
-function SkyDome({ frame, panoUrl, panoYaw, fog }: { frame: ArenaFrame; panoUrl?: string; panoYaw: number; fog: string }) {
+function SkyDome({ frame, panoUrl, maskUrl, panoYaw, fog }: { frame: ArenaFrame; panoUrl?: string; maskUrl?: string; panoYaw: number; fog: string }) {
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: skyVertex,
     fragmentShader: skyFragment,
     uniforms: {
       uPano: { value: null },
+      uMask: { value: null },
       uHasPano: { value: 0 },
+      uHasMask: { value: 0 },
       uPanoYaw: { value: panoYaw },
       uForward: { value: frame.forward.clone() },
       uFog: { value: new THREE.Color(fog) },
@@ -152,6 +163,20 @@ function SkyDome({ frame, panoUrl, panoYaw, fog }: { frame: ArenaFrame; panoUrl?
       dead = true
     }
   }, [panoUrl, material])
+
+  useEffect(() => {
+    if (!maskUrl) return
+    let dead = false
+    new THREE.TextureLoader().load(maskUrl, (t) => {
+      if (dead) return t.dispose()
+      t.wrapS = THREE.RepeatWrapping
+      material.uniforms.uMask.value = t
+      material.uniforms.uHasMask.value = 1
+    })
+    return () => {
+      dead = true
+    }
+  }, [maskUrl, material])
 
   const mesh = useRef<THREE.Mesh>(null)
   useFrame(({ camera }, delta) => {
@@ -249,7 +274,7 @@ function Ground({ frame, layout, tex }: { frame: ArenaFrame; layout: StageLayout
     clearcoat: 0.9,
     clearcoatRoughness: 0.1,
     envMapIntensity: 1.4,
-    color: '#cfd3db',
+    color: '#dcbba6',
   }), [tex])
   const walkMat = useMemo(() => new THREE.MeshPhysicalMaterial({
     map: tex.paverMap,
@@ -259,6 +284,7 @@ function Ground({ frame, layout, tex }: { frame: ArenaFrame; layout: StageLayout
     clearcoat: 0.6,
     clearcoatRoughness: 0.2,
     envMapIntensity: 1.2,
+    color: '#e0c6b4',
   }), [tex])
   useEffect(() => () => {
     road?.dispose()
@@ -359,6 +385,35 @@ function Houses({ frame, layout, tex, lanternUrl }: { frame: ArenaFrame; layout:
       const plinth = new THREE.Mesh(new THREE.BoxGeometry(h.width, 0.4, 0.12), trimMat('#6f6a64'))
       plinth.position.set(0, 0.2, h.depth / 2 + 0.05)
       house.add(cornice, cap, plinth)
+
+      if (h.style === 'scan') {
+        // Double moulded cornice like the scanned cottages.
+        const band = new THREE.Mesh(new THREE.BoxGeometry(h.width + 0.02, 0.12, 0.2), trimMat(h.trim))
+        band.position.set(0, h.height - 0.55, h.depth / 2 + 0.07)
+        house.add(band)
+        // Front steps at the door, and a low stoep wall either side.
+        const doorX = -h.width / 2 + 0.26 + ((h.width - 0.52) / h.bays) * (h.door + 0.5)
+        const stepMat = trimMat('#7a7570')
+        for (const [k, sy, sz] of [[0, 0.21, 0.8], [1, 0.42, 0.42]] as const) {
+          const step = new THREE.Mesh(boxWithMetricUV(1.4, sy, sz, 1), stepMat)
+          step.position.set(doorX, sy / 2 + 0.14, h.depth / 2 + sz / 2)
+          step.name = `step${k}`
+          house.add(step)
+        }
+        if (h.stoep) {
+          const wallMat = plasterMat(h.color)
+          const z = h.depth / 2 + 0.95
+          for (const [x0, x1] of [[-h.width / 2, doorX - 0.85], [doorX + 0.85, h.width / 2]]) {
+            const w = x1 - x0
+            if (w < 0.4) continue
+            const wall = new THREE.Mesh(boxWithMetricUV(w, 0.85, 0.2, 3), wallMat)
+            wall.position.set((x0 + x1) / 2, 0.14 + 0.425, z)
+            const coping = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.06, 0.26), trimMat(h.trim))
+            coping.position.set((x0 + x1) / 2, 0.14 + 0.88, z)
+            house.add(wall, coping)
+          }
+        }
+      }
 
       if (h.lantern) {
         const doorX = -h.width / 2 + 0.26 + ((h.width - 0.52) / h.bays) * (h.door + 0.5)
@@ -485,7 +540,7 @@ function Lamps({ frame, items }: { frame: ArenaFrame; items: StageLayout['props'
       glow.position.copy(lightPos)
       lamp.add(glow)
       if (i < MAX_LAMP_LIGHTS) {
-        const light = new THREE.PointLight('#ffad5c', 45, 22, 1.5)
+        const light = new THREE.PointLight('#ff9f45', 50, 24, 1.5)
         light.position.copy(lightPos)
         lamp.add(light)
       }
@@ -622,15 +677,15 @@ function Atmosphere({ fog }: { fog: StageConfig['fog'] }) {
   return (
     <>
       {/* City-glow ambient so pastel facades read at night (meshes only, splats are baked). */}
-      <hemisphereLight args={['#7d8bb0', '#3a2e26', 0.42]} />
-      <directionalLight position={[-30, 40, 20]} intensity={0.18} color="#9fb2dd" />
+      <hemisphereLight args={['#a5826a', '#3d2b22', 0.5]} />
+      <directionalLight position={[-30, 40, 20]} intensity={0.08} color="#8f9fc4" />
     </>
   )
 }
 
 /* ----------------------------------------------------------------- stage -- */
 
-export function Stage({ arena, stage, assets, panoUrl }: { arena: ArenaConfig; stage: StageConfig; assets: StageAssets; panoUrl?: string }) {
+export function Stage({ arena, stage, assets, panoUrl, maskUrl }: { arena: ArenaConfig; stage: StageConfig; assets: StageAssets; panoUrl?: string; maskUrl?: string }) {
   const frame = useMemo(() => arenaFrame(arena), [arena])
   const layout = useMemo(() => {
     const l = buildLayout(stage)
@@ -648,7 +703,7 @@ export function Stage({ arena, stage, assets, panoUrl }: { arena: ArenaConfig; s
     <>
       {stage.clipSplats === true && <SplatClip frame={frame} clip={stage.clip} />}
       <Atmosphere fog={stage.fog} />
-      <SkyDome frame={frame} panoUrl={panoUrl} panoYaw={frame.config.backdropYaw} fog={stage.fog.color} />
+      <SkyDome frame={frame} panoUrl={panoUrl} maskUrl={maskUrl} panoYaw={frame.config.backdropYaw} fog={stage.fog.color} />
       <Suspense fallback={null}>
         <StageGeometry frame={frame} layout={layout} assets={assets} />
       </Suspense>

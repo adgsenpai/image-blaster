@@ -31,10 +31,13 @@
       { "u": -5, "width": 7 }
     ],
     "extent": { "front": 140, "back": 80, "side": 80 },
-    "fog": { "color": "#5a647d", "density": 0.011 },
+    "fog": { "color": "#655d63", "density": 0.011 },
     "palette": ["#d8457a", "#e3657f", "#8cc63f", "#f2c230", "#8e9be0", "#f08a3c", "#4fb8b0", "#b58ad6", "#5fa8e0", "#e8dcc4"],
     "seed": 2026,
     "rain": false,
-    "splat": "output/stage/1-world-clipped.spz"
+    "splat": "output/stage/1-world-clipped.spz",
+    "skyMask": "output/backdrop/2-sky-mask.png",
+    "groundFeather": 2.5,
+    "scanStyleRadius": 28
   }
 }

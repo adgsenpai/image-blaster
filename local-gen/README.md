@@ -165,6 +165,29 @@ $PY local-gen/pano_composite.py --repo-root . --pano worlds/$W/output/backdrop/0
 cp local-gen/regions/$W-game.json worlds/$W/game.json
 ```
 
+## Realism pass: a city around the scan
+
+A single photo only reconstructs what the camera saw, so the scan looks right near the photo spot
+and smears everywhere else. The stage keeps the scan exactly where it is good and builds a real 3D
+neighbourhood around it.
+
+![behind spawn](../docs/showcase/10-stage-back-view.jpg)
+
+| script | what it does |
+|---|---|
+| `clip_splats.py` | cuts the World Labs `.spz` to the clean zone (removes ~800k smeared splats) and feathers the scan's street surface into the 3D road |
+| `scan_stats.py` | measures the scan at its seams (road / facade colours, roof heights) so the 3D city can match it |
+| `stage_textures.py` | tileable PBR textures: wet basalt cobbles, sidewalk slabs, plaster |
+| `sky_mask.py` | masks the World Labs pano to its real sky (stops at its invented rooftops, poles and trees) |
+
+In the viewer (`app/src/modules/stage/`), cross streets are placed where the scan ends, so the seam is a
+street corner. Houses within 28 m of the scan copy its style: single-storey cottages at the measured
+roof height, with stoeps, steps and a lantern at every door. Further out the houses mix one and two storeys.
+Facades are drawn on canvas (sash windows, burglar bars, gated doors, cornices, rain streaks), and the
+lighting is warm sodium to match the light baked into the scan. Lamp posts and barriers are modelled by hand, because
+single-image 3D breaks on thin structures. The play area stays at the photo spot, and zombies walk in from the
+surrounding city.
+
 ## Credits
 
 - **IMAGE-BLASTER** by [Neilson Koerner-Safrata](https://github.com/neilsonnn) ([neilsonnn/image-blaster](https://github.com/neilsonnn/image-blaster)), MIT.

@@ -312,7 +312,13 @@ export function WorldViewer({
           </Physics>
           {gameConfig?.stage && showScene && !editing && (
             <OptionalAssetBoundary label="stage" resetKey={desiredSlug}>
-              <Stage arena={gameConfig.arena} stage={gameConfig.stage} assets={stageAssets} panoUrl={backdropUrl} />
+              <Stage
+                arena={gameConfig.arena}
+                stage={gameConfig.stage}
+                assets={stageAssets}
+                panoUrl={backdropUrl}
+                maskUrl={gameConfig.stage.skyMask ? `/worlds/${desiredSlug}/${gameConfig.stage.skyMask}` : undefined}
+              />
             </OptionalAssetBoundary>
           )}
           {splatUrl && (

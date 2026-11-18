@@ -23,6 +23,12 @@ export interface StageConfig {
   clipSplats?: boolean
   /** Pre-clipped splat file (local-gen/clip_splats.py), relative to the world folder. */
   splat?: string
+  /** Metres over which the scan's ground fades into the procedural road. */
+  groundFeather?: number
+  /** Houses within this distance of the scan match its style. */
+  scanStyleRadius?: number
+  /** Sky mask for the backdrop pano (local-gen/sky_mask.py), relative to the world folder. */
+  skyMask?: string
 }
 
 export interface HouseSpec {
@@ -41,6 +47,9 @@ export interface HouseSpec {
   door: number
   lantern: boolean
   variant: number
+  /** 'scan' = matches the scanned street (single storey cottage, stoep, lantern). */
+  style: 'scan' | 'mixed'
+  stoep: boolean
 }
 
 export interface StripSpec {
@@ -118,6 +127,8 @@ function row(
       door: Math.floor(rnd() * bays),
       lantern: rnd() < 0.5,
       variant: Math.floor(rnd() * 4),
+      style: 'mixed',
+      stoep: rnd() < 0.6,
     })
     pos += dir * width
   }
@@ -175,18 +186,20 @@ export function buildLayout(cfg: StageConfig): StageLayout {
   }
 
   // Main street ground: from the clip edge up to each intersection, then beyond it.
+  // Run the procedural road under the scan so its feathered ground fades into it.
+  const overlap = (cfg.groundFeather ?? 2.5) + 0.5
   const segments: [number, number][] = []
   const span = (a: number, b: number) => {
     if (b - a > 0.05) segments.push([a, b])
   }
   if (front) {
-    span(clip.uMax - 0.3, front.u - front.width / 2)
+    span(clip.uMax - overlap, front.u - front.width / 2)
     span(front.u + front.width / 2, extent.front)
-  } else span(clip.uMax - 0.3, extent.front)
+  } else span(clip.uMax - overlap, extent.front)
   if (back) {
-    span(back.u + back.width / 2, clip.uMin + 0.3)
+    span(back.u + back.width / 2, clip.uMin + overlap)
     span(-extent.back, back.u - back.width / 2)
-  } else span(-extent.back, clip.uMin + 0.3)
+  } else span(-extent.back, clip.uMin + overlap)
   for (const [u0, u1] of segments) {
     strips.push({ u0, u1, v0: street.roadLeft, v1: street.roadRight, y: 0, kind: 'road' })
     strips.push({ u0, u1, v0: street.left, v1: street.roadLeft, y: street.curb, kind: 'sidewalk' })
@@ -206,6 +219,22 @@ export function buildLayout(cfg: StageConfig): StageLayout {
       const v = left ? street.left + 0.55 : street.right - 0.55
       props.push({ kind: rnd() < 0.35 ? 'planter' : 'potted', u, v, rot: rnd() * Math.PI * 2 })
     }
+  }
+
+  // Houses close to the scan copy its style: single-storey cottages at the scanned
+  // roof height, with stoeps and a lantern by every door. Further out: mixed.
+  const radius = cfg.scanStyleRadius ?? 28
+  for (const h of houses) {
+    const du = Math.max(clip.uMin - h.u, 0, h.u - clip.uMax)
+    const dv = Math.max(clip.vMin - h.v, 0, h.v - clip.vMax)
+    if (Math.hypot(du, dv) > radius || h.depth < 2) continue
+    h.style = 'scan'
+    h.stories = 1
+    h.height = 4.9 + rnd() * 0.9
+    h.lantern = true
+    h.bays = Math.min(h.bays, 2)
+    h.door = Math.min(h.door, h.bays - 1)
+    if (h.variant === 3) h.variant = 1
   }
 
   return { houses, strips, props }

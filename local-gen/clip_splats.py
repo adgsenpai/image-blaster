@@ -93,6 +93,19 @@ def main():
         return
 
     keep = (u >= clip["uMin"]) & (u <= clip["uMax"]) & (v >= clip["vMin"]) & (v <= clip["vMax"]) & (y <= clip["yMax"]) & (y >= -3)
+
+    # Feather the street surface into the procedural road: ground splats fade out
+    # over the last `feather` metres before each u seam (facades stay solid).
+    feather = float(game["stage"].get("groundFeather", 2.5))
+    if feather > 0:
+        ground = np.abs(y - 0.0) < 0.45
+        edge = np.minimum(u - clip["uMin"], clip["uMax"] - u)
+        fade = np.clip(edge / feather, 0, 1) ** 1.5
+        alpha = arrays["alpha"].copy()
+        scaled = (alpha[:, 0].astype(np.float32) * np.where(ground, fade, 1.0)).round().astype(np.uint8)
+        alpha[:, 0] = scaled
+        arrays = {**arrays, "alpha": alpha}
+        keep &= ~(ground & (fade < 0.02))
     out_dir = wdir / "output/stage"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f"{a.index}-world-{a.out_name}.spz"
