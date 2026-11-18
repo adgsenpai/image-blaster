@@ -332,6 +332,25 @@ export function GameController({ arena }: { arena: ArenaConfig }) {
     }
   }, [gl.domElement, sensitivity, camera]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Dev-only hook for automated visual checks (no pointer lock in automation).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as unknown as Record<string, unknown>
+    w.__fps = {
+      look: (yawDeg: number, pitchDeg = 0) => {
+        yaw.current = frame.yaw + THREE.MathUtils.degToRad(yawDeg)
+        pitch.current = THREE.MathUtils.degToRad(pitchDeg)
+      },
+      teleport: (u: number, v: number) => {
+        const p = arenaPoint(frame, u, v, frame.origin.y + CHARACTER_HEIGHT / 2 + 0.3)
+        bodyRef.current?.setTranslation({ x: p.x, y: p.y, z: p.z }, true)
+      },
+    }
+    return () => {
+      delete w.__fps
+    }
+  }, [frame])
+
   // Release the mouse when the player dies so the HUD buttons are clickable.
   const phase = useGameStore((s) => s.phase)
   useEffect(() => {

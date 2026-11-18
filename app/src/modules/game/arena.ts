@@ -36,10 +36,21 @@ export interface ArenaConfig {
   skylineMinElevation?: number
   /** Half-angle (deg) around the street direction where the pano skyline shows. */
   skylineHalfAngle?: number
+  /** Where zombies emerge (defaults to the arena ends). */
+  spawnFront?: number
+  spawnBack?: number
+  /**
+   * Spawn points outside the arena in street space [u, v], each with an optional
+   * waypoint [u, v] they walk to first (e.g. round the corner of a cross street).
+   */
+  spawnPoints?: { at: [number, number]; via?: [number, number] }[]
+  /** Draw the fog/backdrop walls (off when a procedural stage extends the world). */
+  fogWalls?: boolean
 }
 
 export interface GameConfig {
   arena: ArenaConfig
+  stage?: import('../stage/stage').StageConfig
 }
 
 export interface ArenaFrame {
@@ -62,6 +73,10 @@ const DEFAULTS = {
   mistHeight: 3,
   skylineMinElevation: 3,
   skylineHalfAngle: 32,
+  spawnPoints: [],
+  spawnFront: NaN,
+  spawnBack: NaN,
+  fogWalls: true,
 }
 
 export function arenaFrame(config: ArenaConfig): ArenaFrame {

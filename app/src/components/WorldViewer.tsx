@@ -24,6 +24,7 @@ import { ArenaWalls } from '../modules/game/ArenaWalls'
 import { GameController } from '../modules/game/GameController'
 import { Zombies } from '../modules/game/Zombies'
 import { Grenades } from '../modules/game/Grenades'
+import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
 import { chrome } from './AppChrome'
@@ -165,7 +166,17 @@ export function WorldViewer({
     setGameAvailable(Boolean(gameConfig))
   }, [gameConfig, setGameAvailable])
   const gameOn = Boolean(gameConfig) && gamePhase !== 'off' && !editing
-  const barrierUrl = allObjectAssets.find((asset) => asset.baseObjectId === 'striped-road-barrier')?.url
+  const assetUrl = (id: string) => allObjectAssets.find((asset) => asset.baseObjectId === id)?.url
+  const barrierUrl = assetUrl('striped-road-barrier')
+  const stageAssets: StageAssets = {
+    lamp: assetUrl('street-lamp-post'),
+    lantern: assetUrl('brass-wall-lantern'),
+    planter: assetUrl('large-concrete-planter'),
+    shrub: assetUrl('hibiscus-shrub'),
+    potted: assetUrl('potted-leafy-plant'),
+    barrier: barrierUrl,
+  }
+  const backdropUrl = gameConfig?.arena.backdrop ? `/worlds/${desiredSlug}/${gameConfig.arena.backdrop}` : undefined
   const colliderUrl = desiredWorld?.assets.mesh.collider_mesh_url.startsWith('/worlds/')
     ? desiredWorld.assets.mesh.collider_mesh_url
     : ''
@@ -181,7 +192,8 @@ export function WorldViewer({
     if (controllerResetToken > 0) charRef.current?.reset()
   }, [controllerResetToken])
 
-  const splatUrl = desiredWorld ? getSplatUrl(desiredWorld) : ''
+  const stageSplat = gameConfig?.stage?.splat && !editing ? `/worlds/${desiredSlug}/${gameConfig.stage.splat}` : ''
+  const splatUrl = stageSplat || (desiredWorld ? getSplatUrl(desiredWorld) : '')
   const { ground_plane_offset, flip_y, metric_scale_factor } = desiredWorld?.assets.splats.semantics_metadata ?? DEFAULT_WORLD_SEMANTICS
   const flipY = flip_y ?? true
   const baseMetricScaleFactor = metric_scale_factor ?? 1
@@ -260,8 +272,8 @@ export function WorldViewer({
             {gameConfig && showScene && !editing && (
               <ArenaWalls
                 config={gameConfig.arena}
-                barrierUrl={barrierUrl}
-                backdropUrl={gameConfig.arena.backdrop ? `/worlds/${desiredSlug}/${gameConfig.arena.backdrop}` : undefined}
+                barrierUrl={gameConfig.stage ? undefined : barrierUrl}
+                backdropUrl={backdropUrl}
                 colliders={gameOn || activeControllerMode !== 'fly'}
               />
             )}
@@ -298,6 +310,11 @@ export function WorldViewer({
               groundColliderEnabled={activeGroundPlaneColliderEnabled}
             />
           </Physics>
+          {gameConfig?.stage && showScene && !editing && (
+            <OptionalAssetBoundary label="stage" resetKey={desiredSlug}>
+              <Stage arena={gameConfig.arena} stage={gameConfig.stage} assets={stageAssets} panoUrl={backdropUrl} />
+            </OptionalAssetBoundary>
+          )}
           {splatUrl && (
             <OptionalAssetBoundary label={splatUrl} resetKey={splatUrl}>
               <SplatRenderer

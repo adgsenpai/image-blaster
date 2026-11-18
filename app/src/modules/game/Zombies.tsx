@@ -27,6 +27,10 @@ interface Zombie {
   dying: number
   groanIn: number
   lurch: number
+  /** Walk here first (street corner), then chase the player. */
+  waypoint: THREE.Vector3 | null
+  /** Clamped to the arena once it has walked into it. */
+  inside: boolean
 }
 
 let nextId = 1
@@ -115,6 +119,8 @@ function buildZombie(id: number): Zombie {
     dying: 0,
     groanIn: 1 + Math.random() * 4,
     lurch: Math.random() * Math.PI * 2,
+    waypoint: null,
+    inside: true,
   }
 }
 
@@ -192,15 +198,25 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
     const z = buildZombie(nextId++)
     z.hp = 3 + Math.floor(number / 3)
     z.speed = Math.min(2.7, 0.9 + number * 0.14 + Math.random() * 0.35)
-    // Emerge from whichever fog wall is further from the player, sometimes the other.
-    const { u: pu } = arenaLocal(frame, gameRuntime.playerPos)
-    const front = frame.config.front - 0.6
-    const back = -frame.config.back + 0.6
-    const farFront = Math.abs(front - pu) > Math.abs(back - pu)
-    const fromFront = Math.random() < (farFront ? 0.75 : 0.25)
-    const u = fromFront ? front : back
-    const v = (Math.random() * 2 - 1) * (frame.config.halfWidth - 0.6)
-    arenaPoint(frame, u, v, frame.origin.y, z.root.position)
+    const points = frame.config.spawnPoints
+    if (points.length) {
+      // Come out of the surrounding city: cross streets and the far blocks.
+      const sp = points[Math.floor(Math.random() * points.length)]
+      const jitter = (Math.random() - 0.5) * 2.4
+      arenaPoint(frame, sp.at[0] + jitter, sp.at[1] + jitter, frame.origin.y, z.root.position)
+      z.waypoint = sp.via ? arenaPoint(frame, sp.via[0] + jitter * 0.5, sp.via[1] + jitter * 0.5, frame.origin.y) : null
+      z.inside = false
+    } else {
+      // Emerge from whichever end is further from the player, sometimes the other.
+      const { u: pu } = arenaLocal(frame, gameRuntime.playerPos)
+      const front = Number.isFinite(frame.config.spawnFront) ? frame.config.spawnFront : frame.config.front - 0.6
+      const back = Number.isFinite(frame.config.spawnBack) ? -frame.config.spawnBack : -frame.config.back + 0.6
+      const farFront = Math.abs(front - pu) > Math.abs(back - pu)
+      const fromFront = Math.random() < (farFront ? 0.75 : 0.25)
+      const u = fromFront ? front : back
+      const v = (Math.random() * 2 - 1) * (frame.config.halfWidth - 0.6)
+      arenaPoint(frame, u, v, frame.origin.y, z.root.position)
+    }
     group.current?.add(z.root)
     zombies.current.push(z)
     gameRuntime.targets.push(z.root)
@@ -250,9 +266,12 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       }
       alive += 1
 
-      _toPlayer.copy(player).sub(r.position).setY(0)
-      const dist = _toPlayer.length()
-      if (dist > 0.0001) _toPlayer.divideScalar(dist)
+      if (z.waypoint && r.position.distanceTo(z.waypoint) < 1.2) z.waypoint = null
+      const target = z.waypoint ?? player
+      _toPlayer.copy(target).sub(r.position).setY(0)
+      const targetDist = _toPlayer.length()
+      if (targetDist > 0.0001) _toPlayer.divideScalar(targetDist)
+      const dist = z.waypoint ? Infinity : targetDist
 
       // Keep a little space between zombies so they crowd instead of stacking.
       _sep.set(0, 0, 0)
@@ -271,11 +290,12 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         r.position.addScaledVector(_sep, delta * 0.08)
         z.phase += delta * z.speed * 5.2
       }
-      // Clamp to the street.
+      // Clamp to the street once inside it (spawns start out in the side streets).
       const local = arenaLocal(frame, r.position)
       const cu = THREE.MathUtils.clamp(local.u, -frame.config.back + 0.3, frame.config.front - 0.3)
       const cv = THREE.MathUtils.clamp(local.v, -frame.config.halfWidth + 0.3, frame.config.halfWidth - 0.3)
-      if (cu !== local.u || cv !== local.v) arenaPoint(frame, cu, cv, r.position.y, r.position)
+      if (!z.inside && !z.waypoint && cu === local.u && cv === local.v) z.inside = true
+      if (z.inside && (cu !== local.u || cv !== local.v)) arenaPoint(frame, cu, cv, r.position.y, r.position)
       r.position.y = frame.origin.y
 
       r.rotation.y = Math.atan2(_toPlayer.x, _toPlayer.z)

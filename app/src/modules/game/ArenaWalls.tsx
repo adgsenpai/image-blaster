@@ -233,13 +233,13 @@ export function ArenaWalls({ config, barrierUrl, backdropUrl, colliders = true }
   const pano = usePanoTexture(backdropUrl)
   return (
     <>
-      <FogWall frame={frame} u={frame.config.front} facing={1} pano={pano} />
-      <FogWall frame={frame} u={-frame.config.back} facing={-1} pano={null} />
+      {frame.config.fogWalls && <FogWall frame={frame} u={frame.config.front} facing={1} pano={pano} />}
+      {frame.config.fogWalls && <FogWall frame={frame} u={-frame.config.back} facing={-1} pano={null} />}
       {colliders && <BoundaryColliders frame={frame} />}
       {barrierUrl && (
         <Suspense fallback={null}>
-          <BarrierRow frame={frame} u={frame.config.front - 1.4} url={barrierUrl} />
-          <BarrierRow frame={frame} u={-frame.config.back + 1.4} url={barrierUrl} />
+          <BarrierRow frame={frame} u={frame.config.fogWalls ? frame.config.front - 1.4 : frame.config.front + 0.8} url={barrierUrl} />
+          <BarrierRow frame={frame} u={frame.config.fogWalls ? -frame.config.back + 1.4 : -frame.config.back - 0.8} url={barrierUrl} />
         </Suspense>
       )}
     </>

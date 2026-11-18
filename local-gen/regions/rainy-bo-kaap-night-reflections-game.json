@@ -2,9 +2,18 @@
   "arena": {
     "origin": [0, 0, -1],
     "forward": [0.336, 0, -0.942],
-    "halfWidth": 4.2,
-    "front": 24,
-    "back": 5,
+    "halfWidth": 4.0,
+    "front": 9,
+    "back": 0.5,
+    "spawnPoints": [
+      { "at": [28.5, -32], "via": [28.5, -0.4] },
+      { "at": [28.5, 28], "via": [28.5, -0.4] },
+      { "at": [58, -0.4] },
+      { "at": [-5, -30], "via": [-5, -0.4] },
+      { "at": [-5, 26], "via": [-5, -0.4] },
+      { "at": [-38, -0.4] }
+    ],
+    "fogWalls": false,
     "wallHeight": 45,
     "wallOverhang": 30,
     "fogColor": "#070a14",
@@ -13,5 +22,19 @@
     "backdropYaw": -1.5708,
     "backdropExposure": 1,
     "mistHeight": 3
+  },
+  "stage": {
+    "clip": { "uMin": -1.0, "uMax": 24.5, "vMin": -14, "vMax": 13, "yMax": 12 },
+    "street": { "left": -4.8, "right": 4.0, "roadLeft": -2.9, "roadRight": 2.2, "curb": 0.14 },
+    "crossStreets": [
+      { "u": 28.5, "width": 8 },
+      { "u": -5, "width": 7 }
+    ],
+    "extent": { "front": 140, "back": 80, "side": 80 },
+    "fog": { "color": "#5a647d", "density": 0.011 },
+    "palette": ["#d8457a", "#e3657f", "#8cc63f", "#f2c230", "#8e9be0", "#f08a3c", "#4fb8b0", "#b58ad6", "#5fa8e0", "#e8dcc4"],
+    "seed": 2026,
+    "rain": false,
+    "splat": "output/stage/1-world-clipped.spz"
   }
 }
