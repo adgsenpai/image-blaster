@@ -1,0 +1,29 @@
+# Python 3.12 venv. Install torch first for Blackwell (RTX 50xx, sm_120):
+#   uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# Then:
+pillow
+numpy
+opencv-python-headless
+transformers<5
+huggingface_hub>=0.34,<1.0   # transformers 4.x breaks on hub 1.x/2.x
+diffusers==0.35.2            # last diffusers that works with hub<1.0
+timm
+kornia
+einops
+spandrel                     # loads Real-ESRGAN weights without basicsr
+rembg
+onnxruntime
+trimesh
+omegaconf
+jaxtyping
+open_clip_torch
+gpytoolbox
+pynanoinstantmeshes
+soundfile
+torchsde
+accelerate
+setuptools
+wheel
+ninja
+# Stable Fast 3D C++ extensions (built CPU-only, no nvcc needed):
+#   uv pip install --no-build-isolation <sf3d>/texture_baker <sf3d>/uv_unwrapper

@@ -1,3 +1,16 @@
+> **This is adgsenpai's version of [neilsonnn/image-blaster](https://github.com/neilsonnn/image-blaster)**
+> by [Neilson Koerner-Safrata](https://github.com/neilsonnn), who built the original pipeline, skills and viewer (MIT).
+> My addition is **[local-gen](local-gen/README.md)**, which runs the clean plate, HD upscale and image-to-3D steps on a local
+> GPU (tested on an 8 GB RTX 5060 Laptop) instead of FAL. It also documents every fix it took to get the project running on Linux, Blackwell and no Bun.
+
+| input photo | local LaMa plate → Real-ESRGAN HD | World Labs world |
+|---|---|---|
+| ![original](docs/showcase/01-original.jpg) | ![hd plate](docs/showcase/03-esrgan-hd-plate.jpg) | ![world](docs/showcase/04-world-pano.jpg) |
+
+See **[local-gen/README.md](local-gen/README.md)** for the full breakdown of what I changed and why.
+
+---
+
 <img width="960" height="540" alt="image-blaster-1" src="https://github.com/user-attachments/assets/d294e420-eb48-4f00-b6a8-13005442d1a8" />
 
 ## `image-blaster`

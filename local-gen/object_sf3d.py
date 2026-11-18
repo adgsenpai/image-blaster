@@ -39,14 +39,36 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def crop(img: Image.Image, box, pad=0.12, min_side=1024):
+_ESRGAN = None
+
+
+def esrgan(c: Image.Image) -> Image.Image:
+    """Real-ESRGAN x4 on a crop so small props get real edge/texture detail."""
+    global _ESRGAN
+    import numpy as np
+    from spandrel import ModelLoader
+    from upscale_esrgan import MODELS, upscale
+
+    if _ESRGAN is None:
+        _ESRGAN = ModelLoader().load_from_file(MODELS / "RealESRGAN_x4plus.pth").model.cuda().half().eval()
+    return Image.fromarray(upscale(_ESRGAN, np.array(c.convert("RGB"))))
+
+
+def crop(img: Image.Image, box, pad=0.12, min_side=1024, sharpen=True):
     w, h = img.size
     x0, y0, x1, y1 = box[0] * w, box[1] * h, box[2] * w, box[3] * h
     bw, bh = x1 - x0, y1 - y0
     x0, y0 = max(0, x0 - bw * pad), max(0, y0 - bh * pad)
     x1, y1 = min(w, x1 + bw * pad), min(h, y1 + bh * pad)
     c = img.crop((int(x0), int(y0), int(x1), int(y1)))
+    if sharpen and max(c.size) < min_side:
+        c = esrgan(c)
+        if max(c.size) < min_side and max(c.size) * 4 <= 4096:
+            c = esrgan(c)
     scale = min_side / max(c.size)
+    if scale < 1:
+        c = c.resize((round(c.width * scale), round(c.height * scale)), Image.LANCZOS)
+        scale = 1
     if scale > 1:
         c = c.resize((round(c.width * scale), round(c.height * scale)), Image.LANCZOS)
     return c
@@ -69,31 +91,42 @@ def main():
     if a.only:
         jobs = [j for j in jobs if j["id"] in a.only]
 
+    # Phase 1: reference cutouts (ESRGAN on GPU, BiRefNet via onnxruntime on CPU).
     session = rembg.new_session("birefnet-general")
-    model = SF3D.from_pretrained(
-        "stabilityai/stable-fast-3d", config_name="config.yaml", weight_name="model.safetensors"
-    )
-    model.to("cuda").eval()
-
-    results = []
+    prepared = []
     for job in jobs:
         oid = job["id"]
         out_dir = root / "worlds" / a.world / "output" / oid
         out_dir.mkdir(parents=True, exist_ok=True)
         n = next_index(out_dir, oid)
-        t0 = time.time()
-
         cut = rembg.remove(crop(scene, job["box"]), session=session)
         ref = resize_foreground(cut, a.foreground_ratio)
         ref_path = out_dir / f"{n}-{oid}.png"
         ref.save(ref_path)
         (out_dir / f".{n}-{oid}-image-request.json").write_text(json.dumps({
             "schema_version": 1, "provider": "local", "scope": "image",
-            "model": "crop + rembg birefnet-general", "world": a.world, "object_id": oid,
-            "input_image": a.image, "box": job["box"],
+            "model": "crop + Real-ESRGAN x4 + rembg birefnet-general", "world": a.world,
+            "object_id": oid, "input_image": a.image, "box": job["box"],
             "output": str(ref_path.relative_to(root)), "created_at": now(),
         }, indent=2) + "\n")
+        prepared.append((oid, out_dir, n, ref, ref_path))
+        print(json.dumps({"id": oid, "reference": str(ref_path.relative_to(root))}), flush=True)
 
+    # Free ESRGAN before loading SF3D so the 8GB card only holds one model.
+    global _ESRGAN
+    _ESRGAN = None
+    del session
+    torch.cuda.empty_cache()
+
+    # Phase 2: Stable Fast 3D.
+    model = SF3D.from_pretrained(
+        "stabilityai/stable-fast-3d", config_name="config.yaml", weight_name="model.safetensors"
+    )
+    model.to("cuda").eval()
+
+    results = []
+    for oid, out_dir, n, ref, ref_path in prepared:
+        t0 = time.time()
         torch.cuda.reset_peak_memory_stats()
         with torch.no_grad(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
             mesh, _ = model.run_image(
