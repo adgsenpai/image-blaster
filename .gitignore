@@ -21,3 +21,4 @@ app/.vite/
 # Python
 __pycache__/
 *.pyc
+/node_modules

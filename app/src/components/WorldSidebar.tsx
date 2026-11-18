@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Tooltip } from '@radix-ui/themes'
-import { ArrowCounterClockwise, ButterflyIcon, CheckSquareIcon, FileTextIcon, FolderOpenIcon, GlobeHemisphereWestIcon, ImageSquareIcon, ListIcon, PencilSimpleIcon, PersonIcon, QuestionMarkIcon, SpeakerHigh, SpeakerSlash, SquareIcon, TerminalWindowIcon } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ButterflyIcon, CheckSquareIcon, FileTextIcon, FolderOpenIcon, GlobeHemisphereWestIcon, ImageSquareIcon, ListIcon, PencilSimpleIcon, PersonIcon, QuestionMarkIcon, Skull, SpeakerHigh, SpeakerSlash, SquareIcon, TerminalWindowIcon } from '@phosphor-icons/react'
 import { useLocation } from 'wouter'
 import type { WorldEntry, WorldHoverPreview, WorldObjectAsset, WorldSceneProject } from '../types/world'
 import { type ControllerMode, useDebugStore } from '../store/debug'
 import { useAudioStore } from '../store/audio'
+import { useGameStore } from '../store/game'
 import { ViewerQuality } from '../types/world'
 import { AppButton } from './AppButton'
 import { ChromeThumbnail, chrome } from './AppChrome'
@@ -395,6 +396,8 @@ function SidebarViewerControls() {
   const setViewerQuality = useDebugStore((s) => s.setViewerQuality)
   const currentControllerMode = CONTROLLER_MODES.find((item) => item.mode === controllerMode) ?? CONTROLLER_MODES[0]
   const currentQuality = QUALITY_MODES.find((item) => item.mode === viewerQuality) ?? QUALITY_MODES[0]
+  const gameAvailable = useGameStore((s) => s.available)
+  const enterGame = useGameStore((s) => s.enter)
 
   return (
     <div className={`${chrome.bar} flex flex-shrink-0 items-center gap-1 text-sm font-medium font-mono`}>
@@ -429,6 +432,19 @@ function SidebarViewerControls() {
           <span>{currentControllerMode.label}</span>
         </AppButton>
       </Tooltip>
+      {gameAvailable && (
+        <Tooltip content="Play zombie survival" delayDuration={0} side="right">
+          <AppButton
+            onClick={enterGame}
+            className="h-7 w-16 justify-center gap-1 flex border flex-1 border-red-400/40 text-red-300"
+            aria-label="Play zombie survival"
+            title="Play zombie survival"
+          >
+            <Skull size={15} weight="fill" className="flex-shrink-0" />
+            <span>Play</span>
+          </AppButton>
+        </Tooltip>
+      )}
       <Tooltip content="Change quality" delayDuration={0} side="right">
         <AppButton
           onClick={() => setViewerQuality(nextMode(QUALITY_MODES, viewerQuality))}

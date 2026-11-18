@@ -1,0 +1,17 @@
+{
+  "arena": {
+    "origin": [0, 0, -1],
+    "forward": [0.336, 0, -0.942],
+    "halfWidth": 4.2,
+    "front": 24,
+    "back": 5,
+    "wallHeight": 45,
+    "wallOverhang": 30,
+    "fogColor": "#070a14",
+    "mistColor": "#1b2030",
+    "backdrop": "output/backdrop/1-pano-hd-composite.jpg",
+    "backdropYaw": -1.5708,
+    "backdropExposure": 1,
+    "mistHeight": 3
+  }
+}

@@ -10,6 +10,8 @@ import { useDebugStore } from './store/debug'
 import { isEditableTarget } from './utils/dom'
 import type { WorldEntry, WorldHoverPreview, WorldObjectAsset } from './types/world'
 import { TerminalWindowIcon } from '@phosphor-icons/react'
+import { GameHUD } from './components/GameHUD'
+import { useGameStore } from './store/game'
 
 const LevaPanel = import.meta.env.DEV
   ? lazy(() => import('leva').then((module) => ({ default: module.Leva })))
@@ -98,7 +100,9 @@ function LoadedApp({
   const entry = worlds.find((w) => w.slug === slug) ?? worlds[0]
   const editing = Boolean(editMatch)
   const showLeva = import.meta.env.VITE_SHOW_LEVA === 'true'
-  const uiVisible = !uiHidden
+  const gamePhase = useGameStore((s) => s.phase)
+  const gameOn = gamePhase !== 'off'
+  const uiVisible = !uiHidden && !gameOn
   const defaultWorldVersionIndex = entry.worldVersions[entry.worldVersions.length - 1]?.index
   const activeWorldVersionIndex = selectedWorldVersions[entry.slug] ?? defaultWorldVersionIndex
   const activeWorldVersion = entry.worldVersions.find((version) => version.index === activeWorldVersionIndex)
@@ -154,6 +158,7 @@ function LoadedApp({
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden select-none [&_*]:focus:outline-none [&_*]:focus-visible:outline-none [&_*]:focus:ring-0 [&_*]:focus-visible:ring-0">
       <ViewerModeHotkeys />
+      {!editing && <GameHUD />}
       {!editing && LevaPanel && DebugPanel && showLeva && uiVisible && (
         <div className="hidden md:block">
           <Suspense fallback={null}>

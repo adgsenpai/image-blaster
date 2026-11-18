@@ -18,6 +18,12 @@ import { PostProcessing } from '../modules/postprocessing/PostProcessing'
 import { DEFAULT_SHADOW_CATCHER_COLOR, DEFAULT_SHADOW_CATCHER_OPACITY, shadowCatcherColor, shadowCatcherOpacity } from '../modules/scene/shadows'
 import { getSplatUrl } from '../utils/worldLoader'
 import { useDebugStore } from '../store/debug'
+import { useGameStore } from '../store/game'
+import { useGameConfig } from '../modules/game/arena'
+import { ArenaWalls } from '../modules/game/ArenaWalls'
+import { GameController } from '../modules/game/GameController'
+import { Zombies } from '../modules/game/Zombies'
+import { Grenades } from '../modules/game/Grenades'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
 import { chrome } from './AppChrome'
@@ -152,6 +158,14 @@ export function WorldViewer({
   const sunIntensity = useDebugStore((s) => s.sunIntensity)
   const sunColor = useDebugStore((s) => s.sunColor)
   const [sourceThumbnailCollapsed, setSourceThumbnailCollapsed] = useState(false)
+  const gameConfig = useGameConfig(desiredSlug)
+  const gamePhase = useGameStore((s) => s.phase)
+  const setGameAvailable = useGameStore((s) => s.setAvailable)
+  useEffect(() => {
+    setGameAvailable(Boolean(gameConfig))
+  }, [gameConfig, setGameAvailable])
+  const gameOn = Boolean(gameConfig) && gamePhase !== 'off' && !editing
+  const barrierUrl = allObjectAssets.find((asset) => asset.baseObjectId === 'striped-road-barrier')?.url
   const colliderUrl = desiredWorld?.assets.mesh.collider_mesh_url.startsWith('/worlds/')
     ? desiredWorld.assets.mesh.collider_mesh_url
     : ''
@@ -236,10 +250,20 @@ export function WorldViewer({
         <Suspense fallback={null}>
           <AudioManager urls={worldSfxUrls} />
           <Physics key={`${desiredSlug}:${controllerResetToken}`} gravity={[0, -9.81, 0]}>
-            {activeControllerMode === 'fly' ? (
+            {gameOn && gameConfig ? (
+              <GameController arena={gameConfig.arena} />
+            ) : activeControllerMode === 'fly' ? (
               <FlyController ref={charRef as React.RefObject<FlyControllerHandle>} preserveCameraOnMount={editing} />
             ) : (
               <CharacterController ref={charRef as React.RefObject<CharacterControllerHandle>} />
+            )}
+            {gameConfig && showScene && !editing && (
+              <ArenaWalls
+                config={gameConfig.arena}
+                barrierUrl={barrierUrl}
+                backdropUrl={gameConfig.arena.backdrop ? `/worlds/${desiredSlug}/${gameConfig.arena.backdrop}` : undefined}
+                colliders={gameOn || activeControllerMode !== 'fly'}
+              />
             )}
             {showScene && colliderUrl && (
               <OptionalAssetBoundary label={colliderUrl} resetKey={colliderUrl}>
@@ -255,7 +279,9 @@ export function WorldViewer({
                 </Suspense>
               </OptionalAssetBoundary>
             )}
-            {showObjects && !editing && (
+            {gameOn && gameConfig && <Zombies arena={gameConfig.arena} />}
+            {gameOn && gameConfig && <Grenades arena={gameConfig.arena} />}
+            {showObjects && !editing && !gameOn && (
               <Suspense fallback={null}>
                 <ObjectGrid
                   objects={objectPhysicsAssets}
@@ -306,7 +332,7 @@ export function WorldViewer({
             </OptionalAssetBoundary>
           )}
           {!panoUrl && <DefaultEnvironment intensity={activeEnvironmentIntensity} />}
-          {butterfliesEnabled && <ButterflyScene />}
+          {butterfliesEnabled && !gameOn && <ButterflyScene />}
           <OriginHelper />
           {isHighQuality && <PostProcessing />}
         </Suspense>

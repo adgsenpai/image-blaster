@@ -15,6 +15,7 @@ pipeline, so the viewer picks the results up with no app changes.
 | object reference | FAL image edit | crop + **Real-ESRGAN** + **BiRefNet** cutout | ~1.5 GB |
 | image → 3D | FAL Hunyuan 3D | **Stable Fast 3D** (`object_sf3d.py`) | ~6.1 GB peak |
 | world | World Labs `marble-1.1` | unchanged (cloud) | none |
+| skyline backdrop | none | ESRGAN 8K pano + photo composite (`pano_composite.py`) | ~2 GB |
 
 ## Pipeline showcase: Rainy Bo-Kaap at night
 
@@ -94,6 +95,75 @@ $PY local-gen/object_sf3d.py --repo-root . --world $W \
 ```
 
 Then generate the world from the newest plate with the normal `image-blast-world` skill.
+
+## Playable demo: BO-KAAP: LAST NIGHT (zombie FPS)
+
+A small zombie-survival FPS that runs **inside the generated world**: press **Play** in the viewer sidebar.
+
+![zombies](../docs/showcase/07-zombie-fps.jpg)
+
+| Table Mountain skyline backdrop | Sniper scope |
+|---|---|
+| ![backdrop](../docs/showcase/08-table-mountain-backdrop.jpg) | ![scope](../docs/showcase/09-sniper-scope.jpg) |
+
+**Arena walls hide the smeared splats.** A single-image world only reconstructs cleanly near the
+camera. `worlds/<slug>/game.json` defines a street-aligned arena, and opaque backdrop walls close off
+both ends. They draw in the opaque pass, so they write depth before Spark draws the splats: the smear
+behind them is depth-tested away. Invisible side colliders keep the player on the street, and a row of
+the generated **striped road barriers** marks each end.
+
+**Table Mountain skyline.** `pano_composite.py` finds where the source photo sits inside the World Labs
+360° panorama: it searches yaw, pitch and FOV, scoring with NCC on edge maps (the Bo-Kaap fit was yaw -89.8°, FOV 54.4°, NCC 0.91).
+It then paints the sharp HD plate back into an ESRGAN-upscaled 8K pano. The far wall samples that pano along the view ray, like a skybox, but
+**only inside a cone above the horizon, down the street**. The pano's own street and houses never line up with the
+3D street, so below the skyline a lamp-lit fog bank takes over and you get the real mountain and city lights.
+
+**Gameplay** (all procedural: no external models, textures or audio files; sounds are synthesized with WebAudio):
+
+| key | action |
+|---|---|
+| WASD / shift / space | move / sprint / jump |
+| left click | shoot. Hold for the machine gun |
+| right click | aim down sights. The sniper gets a 6× scope |
+| 1 2 3 4 / wheel | pistol · machine gun · sniper · knife |
+| V | knife |
+| G | grenade: bounces, 1.8 s fuse, splash damage, can hurt you |
+| R | reload |
+
+| weapon | mag | notes |
+|---|---|---|
+| pistol | 12 | semi-auto, headshot = one-tap |
+| machine gun | 40 | full auto, spread tightens on ADS |
+| sniper rifle | 5 | scoped, one-shots and **pierces** every zombie in line |
+| knife | n/a | melee, 1.9 m |
+| grenade | 3 (+1 per wave, max 5) | 5.5 m blast radius |
+
+Zombies are built from primitives and walk out of the fog walls in waves. They get faster and tougher each wave and lurch, crowd and claw at you.
+
+`game.json` (Bo-Kaap copy: `local-gen/regions/rainy-bo-kaap-night-reflections-game.json`):
+
+```json
+{
+  "arena": {
+    "origin": [0, 0, -1], "forward": [0.336, 0, -0.942],
+    "halfWidth": 4.2, "front": 24, "back": 5, "wallHeight": 45, "wallOverhang": 30,
+    "backdrop": "output/backdrop/1-pano-hd-composite.jpg", "backdropYaw": -1.5708,
+    "skylineMinElevation": 3, "skylineHalfAngle": 32
+  }
+}
+```
+
+`origin` / `forward` / `halfWidth` come from profiling the World Labs collider mesh around spawn (floor vertices per slice along the street).
+
+```bash
+# 8K backdrop + photo composite
+$PY local-gen/upscale_esrgan.py --repo-root . --input worlds/$W/output/world/1-world-pano.png \
+  --slug pano-hd --target-width 8192 --out-dir worlds/$W/output/backdrop --ext jpg
+$PY local-gen/pano_composite.py --repo-root . --pano worlds/$W/output/backdrop/0-pano-hd.jpg \
+  --match-pano worlds/$W/output/world/1-world-pano.png --photo worlds/$W/source/2-$W-plate-hd.png \
+  --out-dir worlds/$W/output/backdrop
+cp local-gen/regions/$W-game.json worlds/$W/game.json
+```
 
 ## Credits
 

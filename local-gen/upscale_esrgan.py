@@ -49,6 +49,8 @@ def main():
     ap.add_argument("--slug", required=True)
     ap.add_argument("--model", default="RealESRGAN_x4plus.pth")
     ap.add_argument("--target-width", type=int, default=3344, help="downsample the x4 result to this width")
+    ap.add_argument("--out-dir", help="output directory relative to repo root (default: beside the input)")
+    ap.add_argument("--ext", default="png", choices=["png", "jpg"])
     a = ap.parse_args()
 
     root = Path(a.repo_root)
@@ -59,10 +61,12 @@ def main():
     if a.target_width and up.width > a.target_width:
         up = up.resize((a.target_width, round(up.height * a.target_width / up.width)), Image.LANCZOS)
 
-    n = next_index(src.parent)
-    out = src.parent / f"{n}-{a.slug}.png"
-    up.save(out)
-    (src.parent / f".{n}-{a.slug}-request.json").write_text(json.dumps({
+    out_dir = root / a.out_dir if a.out_dir else src.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+    n = next_index(out_dir)
+    out = out_dir / f"{n}-{a.slug}.{a.ext}"
+    up.save(out, **({"quality": 92} if a.ext == "jpg" else {}))
+    (out_dir / f".{n}-{a.slug}-request.json").write_text(json.dumps({
         "schema_version": 1, "provider": "local", "role": "upscale",
         "model": f"Real-ESRGAN ({a.model}) via spandrel, tiled fp16",
         "input_images": [a.input], "input_size": [img.shape[1], img.shape[0]],

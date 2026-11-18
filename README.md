@@ -2,10 +2,15 @@
 > by [Neilson Koerner-Safrata](https://github.com/neilsonnn), who built the original pipeline, skills and viewer (MIT).
 > My addition is **[local-gen](local-gen/README.md)**, which runs the clean plate, HD upscale and image-to-3D steps on a local
 > GPU (tested on an 8 GB RTX 5060 Laptop) instead of FAL. It also documents every fix it took to get the project running on Linux, Blackwell and no Bun.
+> It also turns the generated world into a playable **zombie FPS demo** (pistol, machine gun, scoped sniper, knife, grenades, ADS) with a Table Mountain skyline.
 
 | input photo | local LaMa plate → Real-ESRGAN HD | World Labs world |
 |---|---|---|
 | ![original](docs/showcase/01-original.jpg) | ![hd plate](docs/showcase/03-esrgan-hd-plate.jpg) | ![world](docs/showcase/04-world-pano.jpg) |
+
+| walk the world (Table Mountain backdrop) | play it: BO-KAAP: LAST NIGHT |
+|---|---|
+| ![backdrop](docs/showcase/08-table-mountain-backdrop.jpg) | ![zombies](docs/showcase/07-zombie-fps.jpg) |
 
 See **[local-gen/README.md](local-gen/README.md)** for the full breakdown of what I changed and why.
 
