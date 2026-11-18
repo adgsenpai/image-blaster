@@ -1,0 +1,8 @@
+[
+  { "label": "large-concrete-planter + hibiscus-shrub", "box": [0.0, 0.32, 0.15, 0.955] },
+  { "label": "potted-leafy-plant (green house window)", "box": [0.388, 0.42, 0.485, 0.53] },
+  { "label": "potted-leafy-plant (yellow house, green pillar)", "box": [0.508, 0.43, 0.557, 0.69] },
+  { "label": "potted-leafy-plant (blue wall)", "box": [0.605, 0.555, 0.636, 0.64] },
+  { "label": "striped-road-barrier", "box": [0.75, 0.51, 0.797, 0.578] },
+  { "label": "yield-sign", "box": [0.895, 0.455, 0.916, 0.535] }
+]
