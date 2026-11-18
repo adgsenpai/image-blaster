@@ -13,7 +13,7 @@ pipeline, so the viewer picks the results up with no app changes.
 | clean plate | FAL nano-banana / gpt-image-2 edit | **LaMa** (`plate_lama.py`) | ~2 GB |
 | plate sharpening | none | **Real-ESRGAN x4plus**, tiled fp16 (`upscale_esrgan.py`) | ~1.5 GB |
 | object reference | FAL image edit | crop + **Real-ESRGAN** + **BiRefNet** cutout | ~1.5 GB |
-| image → 3D | FAL Hunyuan 3D | **Stable Fast 3D** (`object_sf3d.py`), WIP | ~6 GB free |
+| image → 3D | FAL Hunyuan 3D | **Stable Fast 3D** (`object_sf3d.py`) | ~6.1 GB peak |
 | world | World Labs `marble-1.1` | unchanged (cloud) | none |
 
 ## Pipeline showcase: Rainy Bo-Kaap at night
@@ -47,7 +47,8 @@ Detail, original (left) vs ESRGAN HD plate (right):
 7. **Stable Fast 3D on 8 GB.** Built the `texture_baker` / `uv_unwrapper` extensions CPU-only (no `nvcc` needed),
    prepped all references first, then freed ESRGAN before loading SF3D so only one model sits in VRAM at a time.
    Tiny props (a 25 px yield sign) get one or two ESRGAN passes before cutout.
-   *Status:* the pipeline runs end to end up to SF3D inference, which needs about 6 GB of free VRAM (see 9).
+   The CPU-only `texture_baker` can't take CUDA tensors, so `object_sf3d.py` routes only the bake step through the CPU.
+   *Result:* all 7 Bo-Kaap props come out as textured GLBs. After warm-up, each mesh takes under 1 s at about 6.1 GB VRAM peak.
 8. **Dependency pins.** `transformers<5` needs `huggingface_hub<1.0`, which needs `diffusers==0.35.2` (see `requirements.txt`).
 9. **Watch other GPU tenants.** A resident Ollama model held 3 GB of VRAM and made SF3D run out of memory.
    Run `ollama stop <model>` before generating meshes.

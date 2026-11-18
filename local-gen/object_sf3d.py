@@ -29,6 +29,39 @@ from sf3d.system import SF3D  # noqa: E402
 from sf3d.utils import resize_foreground  # noqa: E402
 
 
+def _patch_cpu_texture_baker():
+    """texture_baker built without nvcc only registers CPU kernels; SF3D passes
+    CUDA tensors. Run bake ops on CPU and hand results back on the caller's device."""
+    from texture_baker.baker import TextureBaker
+
+    def rasterize(self, uv, face_indices, bake_resolution):
+        out = torch.ops.texture_baker_cpp.rasterize(
+            uv.detach().float().cpu(), face_indices.to(torch.int32).cpu(), bake_resolution
+        )
+        return out.to(uv.device)
+
+    def interpolate(self, attr, rast, face_indices):
+        out = torch.ops.texture_baker_cpp.interpolate(
+            attr.detach().float().cpu(), face_indices.to(torch.int32).cpu(), rast.float().cpu()
+        )
+        return out.to(attr.device)
+
+    TextureBaker.rasterize = rasterize
+    TextureBaker.interpolate = interpolate
+
+
+_patch_cpu_texture_baker()
+
+
+def pending_reference(directory: Path, slug: str):
+    """Latest reference PNG that has no mesh yet (from an interrupted run)."""
+    pat = re.compile(rf"^(\d+)-{re.escape(slug)}\.png$")
+    refs = sorted(((int(m.group(1)), p) for p in directory.iterdir() if (m := pat.match(p.name))), reverse=True)
+    if refs and not (directory / f"{refs[0][0]}-{slug}.glb").exists():
+        return refs[0]
+    return None
+
+
 def next_index(directory: Path, slug: str) -> int:
     pat = re.compile(rf"^\.?(\d+)-{re.escape(slug)}[.-]")
     idx = [int(m.group(1)) for p in directory.iterdir() if (m := pat.match(p.name))]
@@ -98,6 +131,12 @@ def main():
         oid = job["id"]
         out_dir = root / "worlds" / a.world / "output" / oid
         out_dir.mkdir(parents=True, exist_ok=True)
+        pending = pending_reference(out_dir, oid)
+        if pending:
+            n, ref_path = pending
+            prepared.append((oid, out_dir, n, Image.open(ref_path), ref_path))
+            print(json.dumps({"id": oid, "reused_reference": str(ref_path.relative_to(root))}), flush=True)
+            continue
         n = next_index(out_dir, oid)
         cut = rembg.remove(crop(scene, job["box"]), session=session)
         ref = resize_foreground(cut, a.foreground_ratio)
