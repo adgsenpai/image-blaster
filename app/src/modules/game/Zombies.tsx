@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/game'
 import { arenaFrame, arenaLocal, arenaPoint, type ArenaConfig, type ArenaFrame } from './arena'
 import { gameRuntime, zombieApi, type ZombieHit } from './runtime'
 import { sfx } from './sfx'
+import { createModelZombie, loadZombieTemplate, playClip, syncHitboxes, zombieTemplateReady, type ModelZombie } from './zombieModel'
 
 const SKIN = ['#7f8f6a', '#8c9774', '#6e7c5c', '#8a8a6a']
 const SHIRT = ['#3a2f2c', '#2d3a4a', '#4a3a28', '#5a2626', '#3c4a34', '#55504a']
@@ -31,6 +32,10 @@ interface Zombie {
   waypoint: THREE.Vector3 | null
   /** Clamped to the arena once it has walked into it. */
   inside: boolean
+  /** Rigged model (null = procedural fallback). */
+  anim: ModelZombie | null
+  /** Seconds of hit-react stagger left. */
+  stagger: number
 }
 
 let nextId = 1
@@ -121,7 +126,19 @@ function buildZombie(id: number): Zombie {
     lurch: Math.random() * Math.PI * 2,
     waypoint: null,
     inside: true,
+    anim: null,
+    stagger: 0,
   }
+}
+
+/** Rigged CC0 zombie when the model has loaded, procedural box zombie otherwise. */
+function makeZombie(id: number): Zombie {
+  const t = zombieTemplateReady()
+  const z = buildZombie(id)
+  if (!t) return z
+  const anim = createModelZombie(t, id)
+  z.mats.forEach((m) => m.dispose())
+  return { ...z, root: anim.root, mats: anim.mats, anim }
 }
 
 function waveSize(wave: number) {
@@ -141,14 +158,21 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
   const clear = () => {
     for (const z of zombies.current) {
       z.root.removeFromParent()
-      z.root.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.geometry.dispose()
-      })
+      z.anim?.mixer.stopAllAction()
+      if (!z.anim) {
+        z.root.traverse((o) => {
+          if (o instanceof THREE.Mesh) o.geometry.dispose()
+        })
+      }
       z.mats.forEach((m) => m.dispose())
     }
     zombies.current = []
     gameRuntime.targets = []
   }
+
+  useEffect(() => {
+    void loadZombieTemplate()
+  }, [])
 
   useEffect(() => {
     clear()
@@ -168,6 +192,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       if (!z || z.dying > 0) return
       z.hp -= amount
       z.hitFlash = 1
+      if (z.anim && z.hp > 0) z.stagger = 0.3
       // Knock back a little along the shot.
       _toPlayer.copy(gameRuntime.playerPos).sub(z.root.position).setY(0).normalize()
       z.root.position.addScaledVector(_toPlayer, -0.12)
@@ -195,7 +220,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
   }, [])
 
   const spawnZombie = (number: number) => {
-    const z = buildZombie(nextId++)
+    const z = makeZombie(nextId++)
     z.hp = 3 + Math.floor(number / 3)
     z.speed = Math.min(2.7, 0.9 + number * 0.14 + Math.random() * 0.35)
     const points = frame.config.spawnPoints
@@ -257,11 +282,18 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
     for (const z of zombies.current) {
       const r = z.root
       if (z.dying > 0) {
-        // Topple backwards, then sink into the street.
         z.dying += delta
-        const t = Math.min(1, z.dying / 0.45)
-        r.rotation.x = -t * (Math.PI / 2) * 0.95
-        if (z.dying > 1.6) r.position.y -= delta * 0.5
+        if (z.anim) {
+          // Death clip, then sink into the street.
+          playClip(z.anim, 'death', 0.12)
+          z.anim.mixer.update(delta)
+          if (z.dying > 2.4) r.position.y -= delta * 0.4
+        } else {
+          // Topple backwards, then sink into the street.
+          const t = Math.min(1, z.dying / 0.45)
+          r.rotation.x = -t * (Math.PI / 2) * 0.95
+          if (z.dying > 1.6) r.position.y -= delta * 0.5
+        }
         continue
       }
       alive += 1
@@ -283,7 +315,8 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         if (d2 < 0.36 && d2 > 0.0001) _sep.x += dx / d2, _sep.z += dz / d2
       }
 
-      if (playing && dist > ATTACK_RANGE * 0.85) {
+      z.stagger = Math.max(0, z.stagger - delta)
+      if (playing && dist > ATTACK_RANGE * 0.85 && z.stagger === 0) {
         z.lurch += delta * 2.3
         const surge = 0.75 + Math.sin(z.lurch) * 0.25
         r.position.addScaledVector(_toPlayer, z.speed * surge * delta)
@@ -299,6 +332,15 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       r.position.y = frame.origin.y
 
       r.rotation.y = Math.atan2(_toPlayer.x, _toPlayer.z)
+      if (z.anim) {
+        const inReach = dist < ATTACK_RANGE * 1.1
+        if (z.stagger > 0) playClip(z.anim, 'hit', 0.08)
+        else if (inReach) playClip(z.anim, 'attack', 0.15)
+        else if (z.speed > 1.7) playClip(z.anim, 'run', 0.25, z.speed / 3.2)
+        else playClip(z.anim, 'walk', 0.25, z.speed / 1.1)
+        z.anim.mixer.update(delta)
+        syncHitboxes(z.anim)
+      }
       const swing = Math.sin(z.phase) * 0.55
       z.parts.legL.rotation.x = swing
       z.parts.legR.rotation.x = -swing
@@ -332,8 +374,9 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
 
     // Remove corpses once they have sunk.
     const keep = zombies.current.filter((z) => {
-      if (z.dying > 3) {
+      if (z.dying > (z.anim ? 4.2 : 3)) {
         z.root.removeFromParent()
+        z.anim?.mixer.stopAllAction()
         z.mats.forEach((m) => m.dispose())
         return false
       }

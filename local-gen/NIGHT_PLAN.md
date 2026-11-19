@@ -11,7 +11,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 
 ## Backlog (in order)
 
-- [ ] 1. **Real zombies**: replace the procedural box zombies with `app/public/game/zombie.glb`
+- [x] 1. **Real zombies**: replace the procedural box zombies with `app/public/game/zombie.glb`
       (Quaternius, CC0, 50-bone rig; clips Walk / Run / Punch / Death / HitReact / Crawl / Idle).
       Use SkeletonUtils.clone per zombie and an AnimationMixer. Raycast hits via bone proximity
       or a hidden capsule hitbox per zombie, with head and limb hitboxes.
