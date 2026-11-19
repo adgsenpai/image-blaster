@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MAX_HEALTH, useGameStore } from '../store/game'
-import { GRENADE_MAX, WEAPONS, WEAPON_ORDER } from '../modules/game/weapons'
+import { GRENADE_MAX, PERKS, WEAPONS, WEAPON_ORDER } from '../modules/game/weapons'
 import { gameRuntime } from '../modules/game/runtime'
 
 function useFlash(token: number, ms: number) {
@@ -33,6 +33,10 @@ export function GameHUD() {
   const ammoByWeapon = useGameStore((s) => s.ammo)
   const ads = useGameStore((s) => s.ads)
   const grenades = useGameStore((s) => s.grenades)
+  const money = useGameStore((s) => s.money)
+  const owned = useGameStore((s) => s.owned)
+  const reserve = useGameStore((s) => s.reserve)
+  const perks = useGameStore((s) => s.perks)
   const def = WEAPONS[weapon]
   const ammo = ammoByWeapon[weapon]
   const scoped = ads && def.scope
@@ -107,6 +111,7 @@ export function GameHUD() {
         <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-5 rounded bg-black/40 px-4 py-1.5 text-sm backdrop-blur-sm">
           <span>wave <b className="text-amber-300">{wave}</b></span>
           <span>score <b>{score}</b></span>
+          <span className="text-emerald-300">R <b>{money.toLocaleString('en-ZA')}</b></span>
           <span>kills <b>{kills}</b></span>
           <span className="text-white/60">left {alive}</span>
         </div>
@@ -123,6 +128,13 @@ export function GameHUD() {
       {/* bottom: health + ammo */}
       {phase !== 'ready' && (
         <>
+          <div className="absolute bottom-16 left-6 flex gap-1.5">
+            {perks.map((p) => (
+              <span key={p} className="rounded px-2 py-0.5 text-[11px] font-bold ring-1 ring-white/25" style={{ background: PERKS[p].color, color: PERKS[p].label }}>
+                {PERKS[p].name}
+              </span>
+            ))}
+          </div>
           <div className="absolute bottom-6 left-6 w-64">
             <div className="mb-1 text-xs text-white/70">health</div>
             <div className="h-3 overflow-hidden rounded-sm bg-black/50 ring-1 ring-white/20">
@@ -138,7 +150,7 @@ export function GameHUD() {
               {!def.mag ? <span className="text-2xl text-white/60">melee</span> : reloading ? <span className="text-xl text-amber-300">reloading…</span> : (
                 <>
                   <span className={ammo <= Math.ceil(def.mag * 0.2) ? 'text-red-400' : ''}>{ammo}</span>
-                  <span className="text-lg text-white/50"> / {def.mag}</span>
+                  <span className="text-lg text-white/50"> / {reserve[weapon]}</span>
                 </>
               )}
             </div>
@@ -151,7 +163,7 @@ export function GameHUD() {
             </div>
           </div>
           <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-1.5">
-            {WEAPON_ORDER.map((id) => {
+            {WEAPON_ORDER.filter((id) => owned.includes(id)).map((id) => {
               const w = WEAPONS[id]
               const on = id === weapon
               return (
@@ -224,7 +236,8 @@ function Controls() {
       <span>mouse</span><span>aim</span>
       <span>left click</span><span>shoot (hold: machine gun)</span>
       <span>right click</span><span>aim down sights / scope</span>
-      <span>1 2 3 4 / wheel</span><span>pistol · mg · sniper · knife</span>
+      <span>1–5 / wheel</span><span>knife · magnum · shotgun · AK-47 · sniper (once bought)</span>
+      <span>money</span><span>earn Rand per hit and kill, spend it inside the doors</span>
       <span>V</span><span>knife</span>
       <span>G</span><span>throw grenade</span>
       <span>E</span><span>open door / leave</span>

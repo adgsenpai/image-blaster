@@ -47,6 +47,7 @@ function audio() {
 /** Recorded samples (see public/game/CREDITS.txt); synth is the fallback. */
 const SAMPLE_URLS = {
   pistol: '/game/sfx/pistol.ogg',
+  shotgun: '/game/sfx/shotgun.ogg',
   mg: '/game/sfx/rifle.ogg',
   sniper: '/game/sfx/sniper.ogg',
   reloadPistol: '/game/sfx/reload_pistol.ogg',
@@ -142,10 +143,12 @@ export const sfx = {
     if (!ac) return
     if (!zombieVoice(ac, kind, x, z) && kind === 'groan') sfx.groan()
   },
-  shot(kind: 'pistol' | 'mg' | 'sniper' | 'knife' = 'pistol') {
+  shot(kind: 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
-    if (kind !== 'knife' && playSample(ac, kind, kind === 'mg' ? 0.55 : 0.8)) return
+    // Magnum = pistol recording pitched down for a heavier boom.
+    if (kind === 'pistol' && playSample(ac, 'pistol', 0.95, 0.78)) return
+    if (kind !== 'knife' && kind !== 'pistol' && playSample(ac, kind, kind === 'mg' ? 0.55 : 0.85)) return
     if (kind === 'sniper') {
       noise(ac, 0.6, 1800, 0.8)
       noise(ac, 0.12, 8000, 0.35, 'highpass')
@@ -181,6 +184,37 @@ export const sfx = {
     tone(ac, 'triangle', 180, 90, 0.4, 0.12)
     tone(ac, 'square', 1200, 900, 0.05, 0.05, 0.05)
   },
+  /** Cash register: purchase made. */
+  buy() {
+    const ac = audio()
+    if (!ac) return
+    tone(ac, 'square', 1320, 1320, 0.07, 0.06)
+    tone(ac, 'square', 1760, 1760, 0.18, 0.06, 0.08)
+    noise(ac, 0.12, 6000, 0.08, 'highpass')
+  },
+  /** Bottle cap pop + gulps. */
+  gulp() {
+    const ac = audio()
+    if (!ac) return
+    tone(ac, 'triangle', 900, 300, 0.05, 0.1)
+    for (let i = 0; i < 3; i++) tone(ac, 'sine', 180, 90, 0.12, 0.18, 0.25 + i * 0.28)
+  },
+  /** Original perk jingles (procedural; not based on any existing theme). */
+  jingle(perk: 'rooibos' | 'tonic') {
+    const ac = audio()
+    if (!ac) return
+    // Rooibos Rush: bright marimba riff in a major pentatonic. Tonic: mellow descending bell line.
+    const tunes = {
+      rooibos: { wave: 'triangle' as OscillatorType, beat: 0.13, notes: [72, 76, 79, 81, 79, 76, 72, 74, 76, 79, 84, 0, 81, 79, 76, 79] },
+      tonic: { wave: 'sine' as OscillatorType, beat: 0.2, notes: [79, 76, 74, 72, 74, 76, 0, 72, 67, 69, 72, 0, 74, 72] },
+    }[perk]
+    tunes.notes.forEach((n, i) => {
+      if (!n) return
+      const f = 440 * Math.pow(2, (n - 69) / 12)
+      tone(ac, tunes.wave, f, f * 0.995, tunes.beat * 1.6, 0.12, i * tunes.beat)
+      if (i % 4 === 0) tone(ac, 'sine', f / 4, f / 4, tunes.beat * 2, 0.08, i * tunes.beat)
+    })
+  },
   hitmarker() {
     const ac = audio()
     if (!ac) return
@@ -208,7 +242,7 @@ export const sfx = {
     if (!ac) return
     tone(ac, 'square', 1800, 1200, 0.03, 0.08)
   },
-  reload(kind: 'pistol' | 'mg' | 'sniper' | 'knife' = 'pistol') {
+  reload(kind: 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
     if (kind !== 'knife' && playSample(ac, kind === 'pistol' ? 'reloadPistol' : 'reloadRifle', 0.7)) return

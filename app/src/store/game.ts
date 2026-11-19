@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { GRENADE_MAX, GRENADE_START, WEAPONS, WEAPON_ORDER, type WeaponId } from '../modules/game/weapons'
+import { GRENADE_MAX, GRENADE_START, PERKS, WEAPONS, WEAPON_ORDER, type PerkId, type WeaponId } from '../modules/game/weapons'
 
 export type GamePhase = 'off' | 'ready' | 'playing' | 'paused' | 'dead'
 
@@ -41,6 +41,22 @@ interface GameStore {
   setIndoors: (v: boolean) => void
   setPrompt: (v: string) => void
   setFade: (v: number) => void
+  /** Rand in the wallet. */
+  money: number
+  /** Weapons the player owns (starts with the knife). */
+  owned: WeaponId[]
+  /** Spare rounds per weapon (reloads draw from this). */
+  reserve: Ammo
+  perks: PerkId[]
+  /** Perk being drunk (drives the drinking animation). */
+  drinking: PerkId | null
+  addMoney: (n: number) => void
+  /** Buy a weapon (or ammo if already owned). Returns a message. */
+  buyWeapon: (id: WeaponId) => string
+  buyAmmo: () => string
+  buyPerk: (id: PerkId) => string
+  finishDrink: () => void
+  setReserve: (weapon: WeaponId, n: number) => void
   enter: () => void
   exit: () => void
   start: () => void
@@ -64,8 +80,13 @@ const freshRun = () => ({
   prompt: '',
   fade: 0,
   health: MAX_HEALTH,
-  weapon: 'pistol' as WeaponId,
+  weapon: 'knife' as WeaponId,
   ammo: fullAmmo(),
+  money: 500,
+  owned: ['knife'] as WeaponId[],
+  reserve: Object.fromEntries(WEAPON_ORDER.map((id) => [id, 0])) as Ammo,
+  perks: [] as PerkId[],
+  drinking: null as PerkId | null,
   reloading: false,
   ads: false,
   grenades: GRENADE_START,
@@ -102,8 +123,47 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   damage: (amount) => set((s) => {
     if (s.phase !== 'playing') return {}
     const health = Math.max(0, s.health - amount)
+    if (health === 0 && s.perks.includes('tonic')) {
+      // Table Mountain Tonic: back on your feet once, then it's gone.
+      return {
+        health: MAX_HEALTH, hurtToken: s.hurtToken + 1, perks: s.perks.filter((p) => p !== 'tonic'),
+        banner: 'tonic kicked in', bannerToken: s.bannerToken + 1,
+      }
+    }
     return { health, hurtToken: s.hurtToken + 1, ...(health === 0 ? { phase: 'dead' as const, ads: false } : {}) }
   }),
+  addMoney: (n) => set((s) => ({ money: s.money + n })),
+  setReserve: (weapon, n) => set((s) => ({ reserve: { ...s.reserve, [weapon]: n } })),
+  buyWeapon: (id) => {
+    const s = get()
+    const def = WEAPONS[id]
+    if (s.owned.includes(id)) return get().buyAmmo()
+    if (s.money < def.price) return `need R${def.price.toLocaleString('en-ZA')}`
+    set({
+      money: s.money - def.price, owned: [...s.owned, id], weapon: id, reloading: false, ads: false,
+      ammo: { ...s.ammo, [id]: def.mag }, reserve: { ...s.reserve, [id]: def.reserve },
+    })
+    return `bought ${def.name}`
+  },
+  buyAmmo: () => {
+    const s = get()
+    const def = WEAPONS[s.weapon]
+    if (!def.mag) return 'knives never run dry'
+    if (s.reserve[s.weapon] >= def.reserve) return 'ammo full'
+    if (s.money < def.ammoPrice) return `need R${def.ammoPrice}`
+    set({ money: s.money - def.ammoPrice, reserve: { ...s.reserve, [s.weapon]: def.reserve } })
+    return `${def.name} ammo refilled`
+  },
+  buyPerk: (id) => {
+    const s = get()
+    const perk = PERKS[id]
+    if (s.perks.includes(id)) return `already had ${perk.name}`
+    if (s.drinking) return ''
+    if (s.money < perk.price) return `need R${perk.price.toLocaleString('en-ZA')}`
+    set({ money: s.money - perk.price, drinking: id })
+    return `${perk.name}!`
+  },
+  finishDrink: () => set((s) => (s.drinking ? { perks: [...s.perks, s.drinking], drinking: null } : {})),
   setWeapon: (weapon) => set((s) => (s.weapon === weapon ? {} : { weapon, reloading: false, ads: false })),
   setAmmo: (weapon, ammo) => set((s) => ({ ammo: { ...s.ammo, [weapon]: ammo } })),
   setReloading: (reloading) => set({ reloading }),
@@ -113,7 +173,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     set((s) => ({ grenades: s.grenades - 1 }))
     return true
   },
-  addKill: (points) => set((s) => ({ kills: s.kills + 1, score: s.score + points })),
+  addKill: (points) => set((s) => ({ kills: s.kills + 1, score: s.score + points, money: s.money + points })),
   setWave: (wave) => set((s) => ({ wave, grenades: wave > 1 ? Math.min(GRENADE_MAX, s.grenades + 1) : s.grenades })),
   setAlive: (alive) => set({ alive }),
   showBanner: (text) => set((s) => ({ banner: text, bannerToken: s.bannerToken + 1 })),

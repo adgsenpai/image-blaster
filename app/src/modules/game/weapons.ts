@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-export type WeaponId = 'pistol' | 'mg' | 'sniper' | 'knife'
+export type WeaponId = 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife'
 
 export interface WeaponDef {
   id: WeaponId
@@ -32,36 +32,61 @@ export interface WeaponDef {
   aim: [number, number, number]
   /** Muzzle position relative to the viewmodel root. */
   muzzle: [number, number, number]
+  /** Pellets per shot (shotgun). */
+  pellets?: number
+  /** Shop price (Rand); 0 = starting weapon. */
+  price: number
+  /** Spare rounds when bought / max reserve, and the price of an ammo refill. */
+  reserve: number
+  ammoPrice: number
 }
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
-  pistol: {
-    id: 'pistol', name: 'pistol', slot: 1, mag: 12, interval: 0.12, auto: false, reload: 1.15,
-    bodyDamage: 1, headDamage: 99, range: 80, pierce: false,
-    hipSpread: 0.006, adsSpread: 0.0015, adsFov: 55, scope: false, kick: 0.012,
-    hip: [0.2, -0.19, -0.42], aim: [0, -0.112, -0.33], muzzle: [0, 0.022, -0.21],
-  },
-  mg: {
-    id: 'mg', name: 'machine gun', slot: 2, mag: 40, interval: 0.085, auto: true, reload: 2.2,
-    bodyDamage: 0.75, headDamage: 3, range: 70, pierce: false,
-    hipSpread: 0.03, adsSpread: 0.009, adsFov: 52, scope: false, kick: 0.007,
-    hip: [0.22, -0.2, -0.46], aim: [0, -0.128, -0.38], muzzle: [0, 0.015, -0.52],
-  },
-  sniper: {
-    id: 'sniper', name: 'sniper rifle', slot: 3, mag: 5, interval: 1.15, auto: false, reload: 2.6,
-    bodyDamage: 99, headDamage: 99, range: 150, pierce: true,
-    hipSpread: 0.06, adsSpread: 0, adsFov: 12, scope: true, kick: 0.05,
-    hip: [0.22, -0.2, -0.45], aim: [0, -0.15, -0.3], muzzle: [0, 0.012, -0.78],
-  },
   knife: {
-    id: 'knife', name: 'knife', slot: 4, mag: 0, interval: 0.42, auto: false, reload: 0,
+    id: 'knife', name: 'knife', slot: 1, mag: 0, interval: 0.42, auto: false, reload: 0,
     bodyDamage: 3, headDamage: 6, range: 1.9, pierce: false,
     hipSpread: 0, adsSpread: 0, adsFov: 75, scope: false, kick: 0,
     hip: [0.2, -0.2, -0.36], aim: [0.2, -0.2, -0.36], muzzle: [0, 0, -0.2],
+    price: 0, reserve: 0, ammoPrice: 0,
+  },
+  pistol: {
+    id: 'pistol', name: '.44 magnum', slot: 2, mag: 6, interval: 0.32, auto: false, reload: 1.7,
+    bodyDamage: 2.2, headDamage: 99, range: 90, pierce: false,
+    hipSpread: 0.008, adsSpread: 0.001, adsFov: 52, scope: false, kick: 0.04,
+    hip: [0.2, -0.19, -0.42], aim: [0, -0.112, -0.33], muzzle: [0, 0.022, -0.21],
+    price: 3500, reserve: 36, ammoPrice: 350,
+  },
+  shotgun: {
+    id: 'shotgun', name: 'shotgun', slot: 3, mag: 6, interval: 0.75, auto: false, reload: 2.1,
+    bodyDamage: 0.9, headDamage: 3, range: 28, pierce: false, pellets: 8,
+    hipSpread: 0.07, adsSpread: 0.045, adsFov: 62, scope: false, kick: 0.06,
+    hip: [0.22, -0.2, -0.46], aim: [0, -0.13, -0.38], muzzle: [0, 0.015, -0.55],
+    price: 4500, reserve: 30, ammoPrice: 250,
+  },
+  mg: {
+    id: 'mg', name: 'AK-47', slot: 4, mag: 30, interval: 0.1, auto: true, reload: 2.2,
+    bodyDamage: 1, headDamage: 4, range: 80, pierce: false,
+    hipSpread: 0.028, adsSpread: 0.008, adsFov: 52, scope: false, kick: 0.009,
+    hip: [0.22, -0.2, -0.46], aim: [0, -0.128, -0.38], muzzle: [0, 0.015, -0.52],
+    price: 5500, reserve: 150, ammoPrice: 300,
+  },
+  sniper: {
+    id: 'sniper', name: 'sniper rifle', slot: 5, mag: 5, interval: 1.15, auto: false, reload: 2.6,
+    bodyDamage: 99, headDamage: 99, range: 150, pierce: true,
+    hipSpread: 0.06, adsSpread: 0, adsFov: 12, scope: true, kick: 0.05,
+    hip: [0.22, -0.2, -0.45], aim: [0, -0.15, -0.3], muzzle: [0, 0.012, -0.78],
+    price: 7500, reserve: 25, ammoPrice: 300,
   },
 }
 
-export const WEAPON_ORDER: WeaponId[] = ['pistol', 'mg', 'sniper', 'knife']
+export const WEAPON_ORDER: WeaponId[] = ['knife', 'pistol', 'shotgun', 'mg', 'sniper']
+
+/** Cape Town perk drinks (original names): effects are applied in the controller / store. */
+export type PerkId = 'rooibos' | 'tonic'
+export const PERKS: Record<PerkId, { name: string; blurb: string; price: number; color: string; label: string }> = {
+  rooibos: { name: 'Rooibos Rush', blurb: '+50% fire rate, +25% damage', price: 2000, color: '#c0392b', label: '#f5c26b' },
+  tonic: { name: 'Table Mountain Tonic', blurb: 'one free self-revive', price: 1500, color: '#2e86c1', label: '#e8f6ff' },
+}
 
 export const GRENADE_START = 3
 export const GRENADE_MAX = 5
@@ -180,8 +205,25 @@ export function buildGrenade() {
 export function buildViewmodel(id: WeaponId) {
   switch (id) {
     case 'pistol': return buildPistol()
+    case 'shotgun': return buildMachineGun()
     case 'mg': return buildMachineGun()
     case 'sniper': return buildSniper()
     case 'knife': return buildKnife()
   }
+}
+
+/** Perk bottle for the drinking animation. */
+export function buildBottle(color: string, label: string) {
+  const g = new THREE.Group()
+  const glass = new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.92, emissive: color, emissiveIntensity: 0.35 })
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.034, 0.14, 14), glass)
+  const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.032, 0.05, 14), glass)
+  shoulder.position.y = 0.095
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 10), glass)
+  neck.position.y = 0.14
+  const lab = new THREE.Mesh(new THREE.CylinderGeometry(0.0345, 0.0345, 0.06, 14, 1, true), new THREE.MeshStandardMaterial({ color: label, roughness: 0.6 }))
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.012, 10), new THREE.MeshStandardMaterial({ color: '#c9a227', metalness: 0.9, roughness: 0.3 }))
+  cap.position.y = 0.17
+  g.add(body, shoulder, neck, lab, cap)
+  return noRaycast(g)
 }

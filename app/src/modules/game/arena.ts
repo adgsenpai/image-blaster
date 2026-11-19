@@ -48,6 +48,8 @@ export interface ArenaConfig {
   fogWalls?: boolean
   /** Enterable doors in street space: E opens them into a room. */
   doors?: { u: number; v: number; label?: string }[]
+  /** Shop / perk hotspots inside the room, in room-local metres [x, y, z]. */
+  shop?: { kind: 'weapon' | 'ammo' | 'perk'; id?: string; at: [number, number, number] }[]
 }
 
 export interface GameConfig {
@@ -80,6 +82,7 @@ const DEFAULTS = {
   spawnBack: NaN,
   fogWalls: true,
   doors: [],
+  shop: [],
 }
 
 export function arenaFrame(config: ArenaConfig): ArenaFrame {

@@ -8,7 +8,7 @@ import { CAMERA_EYE_OFFSET, CHARACTER_HEIGHT } from '../character/spawn'
 import { arenaFrame, arenaLocal, arenaPoint, type ArenaConfig } from './arena'
 import { gameRuntime, goreApi, grenadeApi, zombieApi } from './runtime'
 import { sfx } from './sfx'
-import { WEAPONS, WEAPON_ORDER, buildViewmodel, type WeaponId } from './weapons'
+import { PERKS, WEAPONS, WEAPON_ORDER, buildBottle, buildViewmodel, type PerkId, type WeaponId } from './weapons'
 import { upgradeViewmodel } from './gunModels'
 import { roomFrame } from './DoorRoom'
 
@@ -63,7 +63,8 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   const adsBlend = useRef(0)
   const switchLeft = useRef(0)
   const throwAnim = useRef(0)
-  const shownWeapon = useRef<WeaponId>('pistol')
+  const shownWeapon = useRef<WeaponId>('knife')
+  const drinkT = useRef(0)
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
 
   const spawn = useMemo(() => arenaPoint(frame, 0, 0, frame.origin.y + CHARACTER_HEIGHT / 2 + 0.3), [frame])
@@ -74,6 +75,51 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     stand: arenaPoint(frame, d.u, d.v + (d.v < 0 ? 0.9 : -0.9), frame.origin.y),
   })), [frame])
   const activeDoor = useRef<(typeof doors)[number] | null>(null)
+  const shopSpots = useMemo(() => (frame.config.shop ?? []).map((sp) => ({ ...sp, world: room.toWorld(...sp.at) })), [frame, room])
+  const activeShop = useRef<(typeof shopSpots)[number] | null>(null)
+  const shopPrompt = (sp: (typeof shopSpots)[number]) => {
+    const s = useGameStore.getState()
+    const R = (n: number) => `R${n.toLocaleString('en-ZA')}`
+    if (sp.kind === 'perk' && sp.id) {
+      const p = PERKS[sp.id as PerkId]
+      return s.perks.includes(sp.id as PerkId) ? `${p.name} · already drunk` : `E · ${p.name} (${p.blurb}) · ${R(p.price)}`
+    }
+    if (sp.kind === 'ammo') {
+      const d = WEAPONS[s.weapon]
+      return d.mag ? `E · ammo for ${d.name} · ${R(d.ammoPrice)}` : 'ammo · hold a gun first'
+    }
+    const d = WEAPONS[(sp.id ?? 'pistol') as WeaponId]
+    return s.owned.includes(d.id) ? `E · ${d.name} ammo · ${R(d.ammoPrice)}` : `E · buy ${d.name} · ${R(d.price)}`
+  }
+  const tryShop = () => {
+    const sp = activeShop.current
+    const s = useGameStore.getState()
+    if (!sp || s.phase !== 'playing') return false
+    let msg = ''
+    if (sp.kind === 'perk' && sp.id) {
+      msg = s.buyPerk(sp.id as PerkId)
+      if (useGameStore.getState().drinking) {
+        sfx.buy()
+        sfx.jingle(sp.id as PerkId)
+        drinkT.current = 0
+      }
+    } else if (sp.kind === 'ammo') {
+      const before = s.money
+      msg = s.buyAmmo()
+      if (useGameStore.getState().money < before) sfx.buy()
+    } else {
+      const before = s.money
+      const id = (sp.id ?? 'pistol') as WeaponId
+      msg = s.buyWeapon(id)
+      if (useGameStore.getState().money < before) {
+        sfx.buy()
+        shownWeapon.current = useGameStore.getState().weapon
+        switchLeft.current = SWITCH_TIME
+      }
+    }
+    if (msg) useGameStore.getState().showBanner(msg)
+    return true
+  }
   const transitioning = useRef(false)
 
   const yawToward = (dir: THREE.Vector3) => Math.atan2(-dir.x, -dir.z)
@@ -121,7 +167,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       f.position.set(...WEAPONS[id].muzzle)
       f.position.z -= 0.02
       root.add(f)
-      root.visible = id === 'pistol'
+      root.visible = id === 'knife'
       holder.add(root)
       models[id] = { root, flash: f }
     }
@@ -131,7 +177,14 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     group.add(torch, torch.target)
     const muzzle = new THREE.PointLight('#ffb35c', 0, 8, 2)
     group.add(muzzle)
-    return { group, holder, models, muzzle }
+    const bottles = {} as Record<PerkId, THREE.Group>
+    for (const id of Object.keys(PERKS) as PerkId[]) {
+      const b = buildBottle(PERKS[id].color, PERKS[id].label) as THREE.Group
+      b.visible = false
+      group.add(b)
+      bottles[id] = b
+    }
+    return { group, holder, models, muzzle, bottles }
   }, [])
 
   useEffect(() => {
@@ -164,6 +217,11 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     const s = useGameStore.getState()
     const def = WEAPONS[s.weapon]
     if (!def.mag || s.reloading || s.ammo[s.weapon] === def.mag || switchLeft.current > 0) return
+    if (s.reserve[s.weapon] <= 0) {
+      sfx.dryFire()
+      s.showBanner('no ammo · buy more inside')
+      return
+    }
     reloadLeft.current = def.reload
     s.setReloading(true)
     sfx.reload(def.id)
@@ -171,7 +229,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
 
   const switchTo = (id: WeaponId) => {
     const s = useGameStore.getState()
-    if (s.weapon === id || s.phase !== 'playing') return
+    if (s.weapon === id || s.phase !== 'playing' || !s.owned.includes(id) || s.drinking) return
     reloadLeft.current = 0
     s.setWeapon(id)
     switchLeft.current = SWITCH_TIME
@@ -197,7 +255,9 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   const fire = () => {
     const s = useGameStore.getState()
     const def = WEAPONS[s.weapon]
-    if (s.phase !== 'playing' || s.reloading || cooldown.current > 0 || switchLeft.current > 0) return
+    if (s.phase !== 'playing' || s.reloading || cooldown.current > 0 || switchLeft.current > 0 || s.drinking) return
+    const rush = s.perks.includes('rooibos')
+    const dmgMul = rush ? 1.25 : 1
 
     if (def.mag) {
       const ammo = s.ammo[s.weapon]
@@ -225,8 +285,12 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       swing.current = 1
       sfx.swing()
     }
-    cooldown.current = def.interval
+    cooldown.current = def.interval * (rush ? 0.66 : 1)
 
+    let landed = false
+    let headshotLanded = false
+    let hitCount = 0
+    for (let pellet = 0; pellet < (def.pellets ?? 1); pellet++) {
     // Hitscan with a spread cone.
     const spread = THREE.MathUtils.lerp(def.hipSpread, def.adsSpread, adsBlend.current)
     camera.getWorldDirection(_dir)
@@ -271,18 +335,19 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     }
 
     const seen = new Set<number>()
-    let landed = false
-    let headshotLanded = false
     for (const h of hits) {
       const id = h.object.userData.zombieId
       if (id === undefined || seen.has(id)) continue
       seen.add(id)
       const headshot = Boolean(h.object.userData.head)
-      zombieApi.damage?.({ zombieId: id, headshot, point: h.point, part: h.object.userData.part }, headshot ? def.headDamage : def.bodyDamage)
+      zombieApi.damage?.({ zombieId: id, headshot, point: h.point, part: h.object.userData.part }, (headshot ? def.headDamage : def.bodyDamage) * dmgMul)
       landed = true
+      hitCount++
       headshotLanded ||= headshot
       if (!def.pierce) break
     }
+    }
+    if (hitCount) s.addMoney(10 * Math.min(hitCount, 3))
     if (landed) {
       s.markHit(headshotLanded)
       sfx.hit(headshotLanded)
@@ -317,7 +382,9 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         if (s.phase === 'dead') s.start()
         else startReload()
       } else if (e.code === 'KeyG') throwGrenade()
-      else if (e.code === 'KeyE') doorTransition()
+      else if (e.code === 'KeyE') {
+        if (!(useGameStore.getState().indoors && activeShop.current && tryShop())) doorTransition()
+      }
       else if (e.code === 'KeyV') switchTo('knife')
       else if (e.code.startsWith('Digit') && !e.shiftKey && !e.altKey) {
         const id = WEAPON_ORDER[Number(e.code.slice(5)) - 1]
@@ -369,9 +436,10 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     const onWheel = (e: WheelEvent) => {
       if (!locked() && !noLock.current) return
       const s = useGameStore.getState()
-      const i = WEAPON_ORDER.indexOf(s.weapon)
-      const next = WEAPON_ORDER[(i + (e.deltaY > 0 ? 1 : -1) + WEAPON_ORDER.length) % WEAPON_ORDER.length]
-      switchTo(next)
+      const owned = WEAPON_ORDER.filter((w) => s.owned.includes(w))
+      const i = owned.indexOf(s.weapon)
+      const next = owned[(i + (e.deltaY > 0 ? 1 : -1) + owned.length) % owned.length]
+      if (next) switchTo(next)
     }
     const onContextMenu = (e: MouseEvent) => {
       if (e.target === el) e.preventDefault()
@@ -469,7 +537,10 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     if (reloadLeft.current > 0) {
       reloadLeft.current -= delta
       if (reloadLeft.current <= 0) {
-        s.setAmmo(s.weapon, def.mag)
+        reloadLeft.current = 0
+        const take = Math.min(def.mag - s.ammo[s.weapon], s.reserve[s.weapon])
+        s.setReserve(s.weapon, s.reserve[s.weapon] - take)
+        s.setAmmo(s.weapon, s.ammo[s.weapon] + take)
         s.setReloading(false)
       }
     }
@@ -524,7 +595,17 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     if (active && !transitioning.current) {
       let prompt = ''
       if (s.indoors) {
-        if (Math.hypot(p.x - room.exit.x, p.z - room.exit.z) < 1.8) prompt = 'E · leave'
+        let best = 1.7
+        activeShop.current = null
+        for (const sp of shopSpots) {
+          const dist = Math.hypot(p.x - sp.world.x, p.z - sp.world.z)
+          if (dist < best) {
+            best = dist
+            activeShop.current = sp
+          }
+        }
+        if (activeShop.current) prompt = shopPrompt(activeShop.current)
+        else if (Math.hypot(p.x - room.exit.x, p.z - room.exit.z) < 1.8) prompt = 'E · leave'
       } else {
         let best = 2.3
         activeDoor.current = null
@@ -592,6 +673,24 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         THREE.MathUtils.lerp(0.1, 0, a),
         reloadDip * 1.5 - THREE.MathUtils.lerp(0.04, 0, a),
       )
+    }
+    // Perk drink: weapon dips away, bottle up to the mouth, tip back, perk applies.
+    for (const [id, b] of Object.entries(rig.bottles) as [PerkId, THREE.Group][]) b.visible = s.drinking === id
+    if (s.drinking) {
+      drinkT.current += delta
+      const t = drinkT.current
+      vm.root.position.y -= Math.min(1, t / 0.25) * 0.5
+      const b = rig.bottles[s.drinking]
+      const up = Math.min(1, t / 0.4)
+      const tip = THREE.MathUtils.clamp((t - 0.45) / 0.35, 0, 1)
+      const down = THREE.MathUtils.clamp((t - 1.5) / 0.3, 0, 1)
+      b.position.set(THREE.MathUtils.lerp(0.18, 0.03, up), THREE.MathUtils.lerp(-0.4, -0.1, up) - down * 0.35, THREE.MathUtils.lerp(-0.4, -0.2, up))
+      b.rotation.set(-tip * 1.9 + down * 1.2, 0, -0.2 + tip * 0.3)
+      if (t > 0.45 && t - delta <= 0.45) sfx.gulp()
+      if (t > 1.85) {
+        s.finishDrink()
+        drinkT.current = 0
+      }
     }
     const flashMat = vm.flash.material as THREE.MeshBasicMaterial
     flashMat.opacity = shown.mag ? flash.current : 0
