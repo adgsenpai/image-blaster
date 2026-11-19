@@ -39,6 +39,8 @@ interface Zombie {
   limbDmg: Record<string, number>
   crawling: boolean
   neckBleed: number
+  /** Knockback slide while dying (decays). */
+  deathVel: THREE.Vector3
 }
 
 let nextId = 1
@@ -134,6 +136,7 @@ function buildZombie(id: number): Zombie {
     limbDmg: {},
     crawling: false,
     neckBleed: 0,
+    deathVel: new THREE.Vector3(),
   }
 }
 
@@ -192,8 +195,9 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
     const SKIN = new THREE.Color('#6f7d5a')
     const _dir = new THREE.Vector3()
     const _lp = new THREE.Vector3()
-    const kill = (z: Zombie, points: number) => {
+    const kill = (z: Zombie, points: number, push?: THREE.Vector3) => {
       z.dying = 0.0001
+      if (push) z.deathVel.copy(push)
       gameRuntime.targets = gameRuntime.targets.filter((t) => t !== z.root)
       useGameStore.getState().addKill(points)
       goreApi.pool?.(z.root.position, 1.1 + Math.random() * 0.6)
@@ -245,7 +249,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       }
       // Knock back a little along the shot.
       z.root.position.addScaledVector(dir, 0.12)
-      if (z.hp <= 0) kill(z, hit.headshot ? 150 : 100)
+      if (z.hp <= 0) kill(z, hit.headshot ? 150 : 100, dir.clone().multiplyScalar(amount >= 50 ? 3.2 : 1.8))
     }
     zombieApi.radius = (point, radius, maxDamage) => {
       let n = 0
@@ -267,7 +271,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
           }
           if (z.hp <= 0 && Math.random() < 0.5) popHead(z, dir)
         }
-        if (z.hp <= 0) kill(z, 120)
+        if (z.hp <= 0) kill(z, 120, dir.clone().multiplyScalar(5 * (1 - d / radius) + 1.5))
       }
       return n
     }
@@ -363,6 +367,9 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       const r = z.root
       if (z.dying > 0) {
         z.dying += delta
+        // Thrown back along the shot, sliding to a stop on the wet street.
+        r.position.addScaledVector(z.deathVel, delta)
+        z.deathVel.multiplyScalar(Math.pow(0.04, delta))
         if (z.anim) {
           // Death clip, then sink into the street.
           if (!z.crawling) playClip(z.anim, 'death', 0.12)
