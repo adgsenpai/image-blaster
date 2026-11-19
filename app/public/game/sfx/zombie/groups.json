@@ -1,0 +1,38 @@
+{
+ "hit": [
+  "zombie-24.ogg",
+  "zombie-5.ogg",
+  "zombie-11.ogg",
+  "zombie-6.ogg",
+  "zombie-13.ogg",
+  "zombie-3.ogg",
+  "zombie-7.ogg",
+  "zombie-22.ogg"
+ ],
+ "attack": [
+  "zombie-10.ogg",
+  "zombie-14.ogg",
+  "zombie-2.ogg",
+  "zombie-4.ogg",
+  "zombie-23.ogg",
+  "zombie-1.ogg",
+  "zombie-12.ogg",
+  "zombie-8.ogg"
+ ],
+ "groan": [
+  "zombie-15.ogg",
+  "zombie-9.ogg",
+  "zombie-20.ogg",
+  "zombie-19.ogg",
+  "zombie-18.ogg",
+  "zombie-21.ogg",
+  "zombie-16.ogg",
+  "zombie-17.ogg"
+ ],
+ "death": [
+  "zombie-18.ogg",
+  "zombie-21.ogg",
+  "zombie-16.ogg",
+  "zombie-17.ogg"
+ ]
+}

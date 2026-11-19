@@ -463,6 +463,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
 
     _euler.set(pitch.current, yaw.current, 0)
     camera.quaternion.setFromEuler(_euler)
+    gameRuntime.camYaw = yaw.current
 
     let fwd = 0
     let strafe = 0

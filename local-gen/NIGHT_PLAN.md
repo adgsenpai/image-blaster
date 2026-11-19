@@ -37,7 +37,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 
 - [x] 10. **Grittier zombies**: desaturate and darken the Quaternius atlas per zombie, add grime/blood tint to the
       material (onBeforeCompile or vertex colour), so they read less cartoony at night.
-- [ ] 11. **Zombie voices**: find CC0 zombie groan/attack/death recordings (OpenGameArt, check each licence) and play them
+- [x] 11. **Zombie voices**: find CC0 zombie groan/attack/death recordings (OpenGameArt, check each licence) and play them
       positionally (PannerNode at the zombie position), keeping the synth as fallback.
 - [ ] 12. **Muzzle smoke + shell casings**: a short-lived smoke puff at the muzzle and ejected brass casings that bounce on the street.
 - [ ] 13. **More doors**: add 2 to 3 more scan doors to `arena.doors` (walk the street with `window.__fps` and screenshot to place them).

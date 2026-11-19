@@ -10,6 +10,8 @@ export const gameRuntime = {
   targets: [] as THREE.Object3D[],
   /** Camera shake intensity, decays in the controller. */
   shake: 0,
+  /** Camera yaw (radians), for positional audio. */
+  camYaw: 0,
 }
 
 export interface ZombieHit {

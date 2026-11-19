@@ -1,4 +1,30 @@
 import { useAudioStore } from '../../store/audio'
+import { gameRuntime } from './runtime'
+
+type VoiceKind = 'hit' | 'attack' | 'groan' | 'death'
+const voices: Partial<Record<VoiceKind, AudioBuffer[]>> = {}
+let voicesRequested = false
+
+function loadVoices(ac: AudioContext) {
+  if (voicesRequested) return
+  voicesRequested = true
+  fetch('/game/sfx/zombie/groups.json')
+    .then((r) => r.json())
+    .then((groups: Record<VoiceKind, string[]>) => {
+      for (const [kind, files] of Object.entries(groups) as [VoiceKind, string[]][]) {
+        for (const f of files) {
+          fetch(`/game/sfx/zombie/${f}`)
+            .then((r) => r.arrayBuffer())
+            .then((b) => ac.decodeAudioData(b))
+            .then((buf) => {
+              ;(voices[kind] ??= []).push(buf)
+            })
+            .catch(() => {})
+        }
+      }
+    })
+    .catch(() => {})
+}
 
 /** Tiny WebAudio synth so the demo needs no audio files. */
 let ctx: AudioContext | null = null
@@ -14,6 +40,7 @@ function audio() {
   }
   if (ctx.state === 'suspended') void ctx.resume()
   loadSamples(ctx)
+  loadVoices(ctx)
   return ctx
 }
 
@@ -85,7 +112,36 @@ function tone(ac: AudioContext, type: OscillatorType, from: number, to: number, 
   osc.stop(t + duration)
 }
 
+/** Play a recorded zombie voice panned/attenuated by its position relative to the player. */
+function zombieVoice(ac: AudioContext, kind: VoiceKind, x: number, z: number) {
+  const pool = voices[kind]
+  if (!pool?.length) return false
+  const buf = pool[Math.floor(Math.random() * pool.length)]
+  const dx = x - gameRuntime.playerPos.x
+  const dz = z - gameRuntime.playerPos.z
+  const dist = Math.hypot(dx, dz)
+  const yaw = gameRuntime.camYaw
+  const rightX = Math.cos(yaw)
+  const rightZ = -Math.sin(yaw)
+  const pan = dist > 0.01 ? Math.max(-1, Math.min(1, (dx * rightX + dz * rightZ) / dist)) : 0
+  const src = ac.createBufferSource()
+  src.buffer = buf
+  src.playbackRate.value = 0.85 + Math.random() * 0.3
+  const g = ac.createGain()
+  g.gain.value = Math.min(1, 1.6 / (1 + dist * 0.35)) * (kind === 'death' ? 0.9 : 0.7)
+  const p = ac.createStereoPanner()
+  p.pan.value = pan * 0.85
+  src.connect(g).connect(p).connect(ac.destination)
+  src.start()
+  return true
+}
+
 export const sfx = {
+  zombie(kind: VoiceKind, x: number, z: number) {
+    const ac = audio()
+    if (!ac) return
+    if (!zombieVoice(ac, kind, x, z) && kind === 'groan') sfx.groan()
+  },
   shot(kind: 'pistol' | 'mg' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return

@@ -200,6 +200,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       if (push) z.deathVel.copy(push)
       gameRuntime.targets = gameRuntime.targets.filter((t) => t !== z.root)
       useGameStore.getState().addKill(points)
+      sfx.zombie('death', z.root.position.x, z.root.position.z)
       goreApi.pool?.(z.root.position, 1.1 + Math.random() * 0.6)
     }
     const away = (from: THREE.Vector3) => _dir.copy(from).sub(gameRuntime.playerPos).setY(0).normalize()
@@ -229,6 +230,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       if (!z || z.dying > 0) return
       z.hp -= amount
       z.hitFlash = 1
+      if (z.hp > 0 && Math.random() < 0.6) sfx.zombie('hit', z.root.position.x, z.root.position.z)
       const dir = away(hit.point).clone()
       goreApi.spray?.(hit.point, dir, hit.headshot ? 34 : 14, hit.headshot ? 3 : 2)
       if (z.anim) {
@@ -453,12 +455,13 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         z.attackCooldown = ATTACK_INTERVAL
         s.damage(ATTACK_DAMAGE)
         sfx.hurt()
+        sfx.zombie('attack', r.position.x, r.position.z)
       }
 
       z.groanIn -= delta
       if (z.groanIn <= 0) {
         z.groanIn = 3 + Math.random() * 6
-        if (dist < 14) sfx.groan()
+        if (dist < 18) sfx.zombie('groan', r.position.x, r.position.z)
       }
 
       if (z.hitFlash > 0) {

@@ -5,3 +5,4 @@ guns/rifle.glb: "Assault Rifle" by Quaternius, CC0 1.0, https://poly.pizza/m/Bgv
 guns/sniper.glb: "Sniper Rifle" by Quaternius, CC0 1.0, https://poly.pizza/m/ASOMZIErq3
 sfx/pistol.ogg, sfx/rifle.ogg, sfx/sniper.ogg: trimmed from "Gunshot sounds" (cz.wav, sks.wav, mosin.wav) by Vincent Sevedge, CC-BY 3.0 (per the pack's bundled license file), https://opengameart.org/content/gunshot-sounds
 sfx/reload_pistol.ogg, sfx/reload_rifle.ogg: from "Gun reload sounds", listed CC0, https://opengameart.org/content/gun-reload-sounds
+sfx/zombie/*.ogg: trimmed from "Zombies Sound Pack" by artisticdude, CC0, https://opengameart.org/content/zombies-sound-pack
