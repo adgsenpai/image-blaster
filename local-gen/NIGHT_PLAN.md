@@ -19,7 +19,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
       Leg damage shears off a leg (scale `UpperLeg.*`) and switches to the `Crawl` clip. Arm hits shear off an arm.
 - [x] 3. **Blood**: particle sprays on every hit, plus blood pool decals on the street that fade slowly.
 - [x] 4. **Ragdoll-ish deaths**: play the Death clip, add knockback along the shot and settle on the ground. Simple physics bodies for gibs.
-- [ ] 5. **Bullet impacts**: rapier `castRayAndGetNormal` against the world collider gives a bullet-hole decal
+- [x] 5. **Bullet impacts**: rapier `castRayAndGetNormal` against the world collider gives a bullet-hole decal
       (oriented to the normal, capped at 80, oldest removed) plus a dust/spark puff.
 - [ ] 6. **Gun models**: CC0 guns (Quaternius on poly.pizza; check that the page says CC0) for the pistol, rifle and sniper viewmodels.
 - [ ] 7. **Gun and zombie sounds**: CC0 OpenGameArt packs ("Gunshot sounds", "Gun reload sounds"), with the synth as fallback.

@@ -192,7 +192,7 @@ function BoundaryColliders({ frame }: { frame: ArenaFrame }) {
   const y = frame.origin.y + h / 2 - 1
   const across = config.halfWidth + config.wallOverhang
   return (
-    <RigidBody type="fixed" colliders={false}>
+    <RigidBody type="fixed" colliders={false} userData={{ noDecal: true }}>
       {/* end walls */}
       <CuboidCollider args={[across, h, t]} position={arenaPoint(frame, config.front, 0, y).toArray()} rotation={[0, yaw, 0]} />
       <CuboidCollider args={[across, h, t]} position={arenaPoint(frame, -config.back, 0, y).toArray()} rotation={[0, yaw, 0]} />

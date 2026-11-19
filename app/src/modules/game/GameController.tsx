@@ -6,7 +6,7 @@ import { useDebugStore } from '../../store/debug'
 import { useGameStore } from '../../store/game'
 import { CAMERA_EYE_OFFSET, CHARACTER_HEIGHT } from '../character/spawn'
 import { arenaFrame, arenaLocal, arenaPoint, type ArenaConfig } from './arena'
-import { gameRuntime, grenadeApi, zombieApi } from './runtime'
+import { gameRuntime, goreApi, grenadeApi, zombieApi } from './runtime'
 import { sfx } from './sfx'
 import { WEAPONS, WEAPON_ORDER, buildViewmodel, type WeaponId } from './weapons'
 
@@ -36,7 +36,7 @@ function makeFlash() {
   return sprite
 }
 
-export function GameController({ arena }: { arena: ArenaConfig }) {
+export function GameController({ arena, street }: { arena: ArenaConfig; street?: { left: number; right: number } }) {
   const bodyRef = useRef<React.ComponentRef<typeof RigidBody>>(null)
   const { camera, gl, scene } = useThree()
   const { rapier, world } = useRapier()
@@ -192,6 +192,37 @@ export function GameController({ arena }: { arena: ArenaConfig }) {
     raycaster.set(camera.position, _dir)
     raycaster.far = def.range
     const hits = raycaster.intersectObjects(gameRuntime.targets, true)
+
+    // Bullet impact on the world: analytic street geometry (ground + both facade lines),
+    // which lines up with the scanned walls better than the coarse collider mesh.
+    if (def.mag) {
+      const firstZombie = hits.find((h) => h.object.userData.zombieId !== undefined)
+      const o = camera.position
+      let bestT = def.range
+      let normal: THREE.Vector3 | null = null
+      if (_dir.y < -1e-4) {
+        const t = (frame.origin.y - o.y) / _dir.y
+        if (t > 0 && t < bestT) {
+          bestT = t
+          normal = new THREE.Vector3(0, 1, 0)
+        }
+      }
+      const ov = (o.x - frame.origin.x) * frame.right.x + (o.z - frame.origin.z) * frame.right.z
+      const dv = _dir.x * frame.right.x + _dir.z * frame.right.z
+      for (const line of street ? [street.left, street.right] : []) {
+        if (Math.abs(dv) < 1e-4) continue
+        const t = (line - ov) / dv
+        if (t <= 0 || t >= bestT) continue
+        const y = o.y + _dir.y * t
+        if (y < frame.origin.y || y > frame.origin.y + 6) continue
+        bestT = t
+        normal = frame.right.clone().multiplyScalar(line < 0 ? 1 : -1)
+      }
+      if (normal && (!firstZombie || bestT < firstZombie.distance || def.pierce)) {
+        goreApi.impact?.(o.clone().addScaledVector(_dir, bestT), normal)
+      }
+    }
+
     const seen = new Set<number>()
     let landed = false
     let headshotLanded = false

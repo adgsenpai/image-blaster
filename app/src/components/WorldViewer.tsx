@@ -264,7 +264,7 @@ export function WorldViewer({
           <AudioManager urls={worldSfxUrls} />
           <Physics key={`${desiredSlug}:${controllerResetToken}`} gravity={[0, -9.81, 0]}>
             {gameOn && gameConfig ? (
-              <GameController arena={gameConfig.arena} />
+              <GameController arena={gameConfig.arena} street={gameConfig.stage?.street} />
             ) : activeControllerMode === 'fly' ? (
               <FlyController ref={charRef as React.RefObject<FlyControllerHandle>} preserveCameraOnMount={editing} />
             ) : (

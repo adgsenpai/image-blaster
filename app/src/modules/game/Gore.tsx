@@ -44,6 +44,34 @@ function bloodTexture(seed: number) {
 }
 
 interface Pool { mesh: THREE.Mesh; age: number; grow: number; size: number }
+
+const MAX_HOLES = 80
+
+function holeTexture() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 30)
+  g.addColorStop(0, 'rgba(5,5,5,1)')
+  g.addColorStop(0.24, "rgba(10,8,8,1)")
+  g.addColorStop(0.35, 'rgba(60,55,50,0.6)')
+  g.addColorStop(1, 'rgba(60,55,50,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  // Cracks / chipped plaster.
+  ctx.strokeStyle = 'rgba(20,18,16,0.7)'
+  ctx.lineWidth = 1.2
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2
+    ctx.beginPath()
+    ctx.moveTo(32 + Math.cos(a) * 5, 32 + Math.sin(a) * 5)
+    ctx.lineTo(32 + Math.cos(a + 0.2) * (12 + Math.random() * 14), 32 + Math.sin(a + 0.2) * (12 + Math.random() * 14))
+    ctx.stroke()
+  }
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
 interface Gib { obj: THREE.Object3D; vel: THREE.Vector3; spin: THREE.Vector3; age: number; bleed: number }
 
 export function Gore() {
@@ -65,11 +93,27 @@ export function Gore() {
     map: bloodTexture(s * 7919), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: true,
   })), [])
   const pools = useRef<Pool[]>([])
+  const holes = useRef<THREE.Mesh[]>([])
+  const holeMat = useMemo(() => new THREE.MeshBasicMaterial({
+    map: holeTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, fog: true,
+  }), [])
+  const dust = useMemo(() => {
+    const n = 600
+    const pos = new Float32Array(n * 3).fill(-9999)
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    const points = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#9c948a', size: 0.035, transparent: true, opacity: 0.8, depthWrite: false }))
+    points.frustumCulled = false
+    points.raycast = () => {}
+    return { points, pos, vel: new Float32Array(n * 3), life: new Float32Array(n), next: 0, n }
+  }, [])
   const gibs = useRef<Gib[]>([])
 
   const clear = () => {
     for (const p of pools.current) p.mesh.removeFromParent()
     for (const g of gibs.current) g.obj.removeFromParent()
+    for (const h of holes.current) h.removeFromParent()
+    holes.current = []
     pools.current = []
     gibs.current = []
     particles.life.fill(0)
@@ -139,16 +183,44 @@ export function Gore() {
         spin: new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14),
       })
     }
+    const _n = new THREE.Vector3()
+    const impact = (point: THREE.Vector3, normal: THREE.Vector3) => {
+      if (!group.current) return
+      if (holes.current.length >= MAX_HOLES) holes.current.shift()?.removeFromParent()
+      const hole = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.13), holeMat)
+      _n.copy(normal).normalize()
+      hole.position.copy(point).addScaledVector(_n, 0.012)
+      hole.lookAt(point.clone().add(_n))
+      hole.rotateZ(Math.random() * Math.PI * 2)
+      hole.raycast = () => {}
+      hole.renderOrder = 3
+      group.current.add(hole)
+      holes.current.push(hole)
+      // Dust / plaster chips kicked off the surface.
+      for (let k = 0; k < 10; k++) {
+        const i = dust.next
+        dust.next = (dust.next + 1) % dust.n
+        dust.pos[i * 3] = point.x
+        dust.pos[i * 3 + 1] = point.y
+        dust.pos[i * 3 + 2] = point.z
+        dust.vel[i * 3] = _n.x * (0.6 + Math.random()) + (Math.random() - 0.5) * 0.8
+        dust.vel[i * 3 + 1] = _n.y * (0.6 + Math.random()) + Math.random() * 0.9
+        dust.vel[i * 3 + 2] = _n.z * (0.6 + Math.random()) + (Math.random() - 0.5) * 0.8
+        dust.life[i] = 0.4 + Math.random() * 0.5
+      }
+    }
     goreApi.spray = spray
     goreApi.pool = pool
     goreApi.gib = gib
+    goreApi.impact = impact
     return () => {
       goreApi.spray = null
       goreApi.pool = null
       goreApi.gib = null
+      goreApi.impact = null
       clear()
     }
-  }, [particles, splats]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [particles, splats, holeMat, dust]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const _d = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   useFrame((_s, raw) => {
@@ -174,6 +246,17 @@ export function Gore() {
       if (life[i] <= 0) pos[i * 3 + 1] = -9999
     }
     particles.points.geometry.attributes.position.needsUpdate = true
+
+    for (let i = 0; i < dust.n; i++) {
+      if (dust.life[i] <= 0) continue
+      dust.life[i] -= dt
+      dust.vel[i * 3 + 1] += GRAVITY * 0.35 * dt
+      dust.pos[i * 3] += dust.vel[i * 3] * dt
+      dust.pos[i * 3 + 1] += dust.vel[i * 3 + 1] * dt
+      dust.pos[i * 3 + 2] += dust.vel[i * 3 + 2] * dt
+      if (dust.life[i] <= 0) dust.pos[i * 3 + 1] = -9999
+    }
+    dust.points.geometry.attributes.position.needsUpdate = true
 
     for (const p of pools.current) {
       p.age += dt
@@ -231,6 +314,7 @@ export function Gore() {
   return (
     <group ref={group}>
       <primitive object={particles.points} />
+      <primitive object={dust.points} />
     </group>
   )
 }
