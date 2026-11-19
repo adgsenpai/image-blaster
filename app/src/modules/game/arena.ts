@@ -52,7 +52,7 @@ export interface ArenaConfig {
    * Interior world behind the doors (an IMAGE-BLASTER World Labs world). When set, it replaces
    * the placeholder cube room: you enter at its photo camera, facing the photo's view.
    */
-  room?: { splat: string; collider?: string; metricScale: number; groundOffset: number }
+  room?: { splat: string; collider?: string; metricScale: number; groundOffset: number; props?: unknown }
   /** Shop / perk hotspots inside the room, in room-local metres [x, y, z]. */
   shop?: { kind: 'weapon' | 'ammo' | 'perk' | 'rack'; id?: string; at: [number, number, number] }[]
 }

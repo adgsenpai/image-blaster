@@ -677,10 +677,9 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     gameRuntime.playerV = local.v
 
     // Viewmodel: show the equipped weapon, lerp hip -> sights, animate.
-    if (shownWeapon.current !== s.weapon && switchLeft.current < SWITCH_TIME / 2) {
-      rig.models[shownWeapon.current].root.visible = false
-      shownWeapon.current = s.weapon
-    }
+    if (shownWeapon.current !== s.weapon && switchLeft.current < SWITCH_TIME / 2) shownWeapon.current = s.weapon
+    // Only ever one viewmodel visible (buying / switching mid-animation used to leave two).
+    for (const id of WEAPON_ORDER) if (id !== shownWeapon.current) rig.models[id].root.visible = false
     const shown = WEAPONS[shownWeapon.current]
     const vm = rig.models[shownWeapon.current]
     vm.root.visible = !(shown.scope && adsBlend.current > 0.8)
