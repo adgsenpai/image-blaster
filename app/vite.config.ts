@@ -2,7 +2,8 @@ import { defineConfig, type Plugin, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import fs from 'fs'
-import { spawn } from 'child_process'
+import { execFileSync, spawn } from 'child_process'
+import os from 'os'
 
 type WorldManifest = Record<string, unknown> & {
   assets?: Record<string, unknown> & {
@@ -795,6 +796,121 @@ function worldsPlugin(): Plugin {
         res.setHeader('Cache-Control', 'no-store')
         res.setHeader('Content-Type', 'application/json')
         res.end(JSON.stringify(out.sort()))
+      })
+      // ---- Room editor: local GPU asset generation + scan cutting (local-gen/*.py) ----
+      const localPy = path.join(os.homedir(), '.cache/image-blaster-local/venv/bin/python')
+      const localGen = path.join(repoRoot, 'local-gen')
+      type GenJob = { status: 'running' | 'done' | 'error'; stage: string; glb?: string; error?: string; started: number; log: string[] }
+      const genJobs = new Map<string, GenJob>()
+      const readBody = (req: import('http').IncomingMessage) =>
+        new Promise<string>((resolve) => {
+          let b = ''
+          req.on('data', (c) => (b += c))
+          req.on('end', () => resolve(b))
+        })
+      const gpuFree = () => {
+        try {
+          const out = execFileSync('nvidia-smi', ['--query-gpu=memory.free', '--format=csv,noheader,nounits']).toString()
+          const apps = execFileSync('nvidia-smi', ['--query-compute-apps=process_name,used_memory', '--format=csv,noheader']).toString().trim()
+          return { freeMb: Number(out.trim().split('\n')[0]), apps }
+        } catch {
+          return { freeMb: -1, apps: '' }
+        }
+      }
+      server.middlewares.use('/__gpu', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify(gpuFree()))
+      })
+      server.middlewares.use('/__gen-asset', async (req, res) => {
+        res.setHeader('Cache-Control', 'no-store')
+        res.setHeader('Content-Type', 'application/json')
+        const url = new URL(req.url || '/', 'http://localhost')
+        if (req.method === 'GET') {
+          const job = genJobs.get(url.searchParams.get('job') ?? '')
+          res.statusCode = job ? 200 : 404
+          res.end(JSON.stringify(job ?? { error: 'no such job' }))
+          return
+        }
+        try {
+          const body = JSON.parse(await readBody(req)) as { world: string; id?: string; prompt?: string; image?: string; strength?: number }
+          if (!/^[a-z0-9-]+$/.test(body.world ?? '')) throw new Error('bad world')
+          const id = (body.id || body.prompt || 'asset').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'asset'
+          const gpu = gpuFree()
+          if (gpu.freeMb >= 0 && gpu.freeMb < 6000) {
+            const hog = gpu.apps.split('\n').filter((l) => !/python/.test(l)).join('; ')
+            throw new Error(`GPU has ${gpu.freeMb} MB free; Stable Fast 3D needs ~6 GB.${hog ? ` In use: ${hog}.` : ''} Free it (e.g. \`ollama stop <model>\`) and retry.`)
+          }
+          const args = [path.join(localGen, 'gen_asset.py'), '--repo-root', repoRoot, '--world', body.world, '--id', id]
+          if (body.prompt) args.push('--prompt', body.prompt)
+          if (typeof body.strength === 'number') args.push('--strength', String(body.strength))
+          if (body.image?.startsWith('data:image/png;base64,')) {
+            const dir = path.join(worldsDir, body.world, 'source', 'captures')
+            fs.mkdirSync(dir, { recursive: true })
+            const file = path.join(dir, `${id}-${Date.now()}.png`)
+            fs.writeFileSync(file, Buffer.from(body.image.split(',')[1], 'base64'))
+            args.push('--image', file)
+          }
+          const jobId = `${id}-${Date.now().toString(36)}`
+          const job: GenJob = { status: 'running', stage: 'starting', started: Date.now(), log: [] }
+          genJobs.set(jobId, job)
+          const child = spawn(localPy, args, { cwd: localGen, env: { ...process.env, HF_HUB_OFFLINE: '1' } })
+          const onLine = (line: string) => {
+            if (!line.trim()) return
+            job.log.push(line.slice(0, 300))
+            if (job.log.length > 40) job.log.shift()
+            try {
+              const j = JSON.parse(line)
+              if (j.stage) job.stage = j.detail ? `${j.stage}: ${j.detail}` : j.stage
+              if (j.glb) job.glb = j.glb
+            } catch {
+              if (/Error|error:/.test(line)) job.error = line.slice(0, 300)
+            }
+          }
+          let buf = ''
+          const feed = (c: Buffer) => {
+            buf += c.toString()
+            const lines = buf.split('\n')
+            buf = lines.pop() ?? ''
+            lines.forEach(onLine)
+          }
+          child.stdout.on('data', feed)
+          child.stderr.on('data', feed)
+          child.on('close', (code) => {
+            onLine(buf)
+            job.status = code === 0 && job.glb ? 'done' : 'error'
+            if (job.status === 'error' && !job.error) job.error = `generator exited with ${code}`
+          })
+          res.end(JSON.stringify({ job: jobId }))
+        } catch (err) {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: String((err as Error).message ?? err) }))
+        }
+      })
+      server.middlewares.use('/__room-cut', async (req, res) => {
+        // Re-clip the room splat with extra boxes (props regenerated as movable assets).
+        res.setHeader('Content-Type', 'application/json')
+        try {
+          const body = JSON.parse(await readBody(req)) as { world: string; boxes: number[][] }
+          if (!/^[a-z0-9-]+$/.test(body.world ?? '')) throw new Error('bad world')
+          const stage = path.join(worldsDir, body.world, 'output', 'stage')
+          const base = JSON.parse(fs.readFileSync(path.join(stage, '.0-world-clean-request.json'), 'utf8'))
+          const args = [path.join(localGen, 'clip_room.py'), '--world-dir', path.join(worldsDir, body.world)]
+          if (base.zmin > -1e8) args.push(`--zmin=${base.zmin}`)
+          if (base.keep_front) args.push(`--keep-front=${base.keep_front}`)
+          for (const b of base.remove ?? []) {
+            if (b[0] === 'grey') args.push(`--remove-grey=${b.slice(1).join(',')}`)
+            else args.push(`--remove=${b.join(',')}`)
+          }
+          for (const b of body.boxes ?? []) if (b.length === 6 && b.every((v) => Number.isFinite(v))) args.push(`--remove=${b.map((v) => v.toFixed(3)).join(',')}`)
+          const name = `clean-cut-${Date.now().toString(36)}`
+          args.push('--out-name', name)
+          execFileSync(localPy, args, { cwd: localGen, timeout: 180000 })
+          for (const f of fs.readdirSync(stage)) if (/clean-cut-/.test(f) && !f.includes(name)) fs.rmSync(path.join(stage, f))
+          res.end(JSON.stringify({ splat: `/worlds/${body.world}/output/stage/0-world-${name}.spz` }))
+        } catch (err) {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: String((err as Error).message ?? err).slice(0, 400) }))
+        }
       })
       server.middlewares.use('/__game-config', (req, res) => {
         // Room editor save: writes worlds/<slug>/game.json (+ the local-gen/regions copy if present).

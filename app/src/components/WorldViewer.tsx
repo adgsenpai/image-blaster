@@ -28,6 +28,7 @@ import { Grenades } from '../modules/game/Grenades'
 import { Gore } from '../modules/game/Gore'
 import { DoorRoom } from '../modules/game/DoorRoom'
 import { RoomProps } from '../modules/game/RoomProps'
+import { useRoomEditor } from '../store/roomEditor'
 import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
@@ -199,6 +200,7 @@ export function WorldViewer({
   const stageSplat = gameConfig?.stage?.splat && !editing ? `/worlds/${desiredSlug}/${gameConfig.stage.splat}` : ''
   const splatUrl = stageSplat || (desiredWorld ? getSplatUrl(desiredWorld) : '')
   const roomCfg = gameConfig?.arena.room
+  useRoomEditor((s) => s.splatVersion) // re-render when the editor re-cuts the room scan
   const roomCenter = gameConfig ? new THREE.Vector3(...gameConfig.arena.origin).add(new THREE.Vector3(0, -60, 0)) : null
   const extraSplats = gameOn && roomCfg && roomCenter
     ? [{ url: roomCfg.splat, position: [roomCenter.x, roomCenter.y + roomCfg.groundOffset, roomCenter.z] as [number, number, number], flipY: true, scale: roomCfg.metricScale }]

@@ -37,7 +37,30 @@ interface RoomEditorState {
   undoLast: () => void
   save: () => Promise<void>
   loadAssets: () => Promise<void>
+  /** Local GPU generation (prompt and/or a screen capture of the scan). */
+  gen: { status: 'idle' | 'running' | 'done' | 'error'; stage: string; error?: string; started?: number }
+  /** Waiting for a drag-rectangle on the scan to capture. */
+  pick: boolean
+  prompt: string
+  setPrompt: (p: string) => void
+  setPick: (on: boolean) => void
+  generate: (prompt: string, opts: { image?: string; target?: GenTarget; strength?: number }) => Promise<void>
+  /** Bumped when the room splat file changes (scan cut). */
+  splatVersion: number
+  cutScan: () => Promise<void>
 }
+
+export interface GenTarget {
+  /** Replace this item in place (keeps transform), or drop a new one at `at`. */
+  replaceId?: string
+  at?: [number, number, number]
+  rotY?: number
+  scale?: number
+  /** Room-local axis-aligned box [x0,x1,y0,y1,z0,z1] to cut out of the scan for this asset. */
+  cut?: number[]
+}
+
+const roomWorld = (config: GameConfig | null) => /\/worlds\/([a-z0-9-]+)\//.exec(config?.arena.room?.splat ?? '')?.[1] ?? ''
 
 let counter = 0
 const newId = (t: string) => `${t}-${Date.now().toString(36)}-${++counter}`
@@ -134,6 +157,72 @@ export const useRoomEditor = create<RoomEditorState>()((set, get) => ({
       set({ status: r.ok ? 'saved to game.json' : `save failed (${r.status})`, dirty: !r.ok })
     } catch {
       set({ status: 'save failed (dev server?)' })
+    }
+  },
+  gen: { status: 'idle', stage: '' },
+  pick: false,
+  prompt: "",
+  setPrompt: (prompt) => set({ prompt }),
+  setPick: (pick) => set({ pick }),
+  splatVersion: 0,
+  generate: async (prompt, { image, target, strength }) => {
+    const world = roomWorld(get().config)
+    if (!world || get().gen.status === 'running') return
+    const started = Date.now()
+    set({ gen: { status: 'running', stage: 'queued', started }, status: 'generating on the GPU…' })
+    try {
+      const r = await fetch('/__gen-asset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ world, prompt, image, strength }),
+      })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`)
+      for (;;) {
+        await new Promise((res) => setTimeout(res, 2000))
+        const s = await (await fetch(`/__gen-asset?job=${encodeURIComponent(j.job)}`, { cache: 'no-store' })).json()
+        set({ gen: { status: 'running', stage: s.stage, started } })
+        if (s.status === 'error') throw new Error(s.error ?? 'generation failed')
+        if (s.status === 'done') {
+          const url = s.glb as string
+          const t = target ?? {}
+          const { items, cam } = get()
+          const src = t.replaceId ? items.find((i) => i.id === t.replaceId) : undefined
+          if (src) {
+            get().update(src.id, { type: 'glb', url, name: prompt || undefined, cut: t.cut ?? src.cut })
+            set({ selected: src.id })
+          } else {
+            get().add('glb', {
+              url, name: prompt || undefined, cut: t.cut, scale: t.scale ?? 1,
+              ...(t.at ? { at: t.at } : {}),
+              rotY: t.rotY ?? Math.atan2(-cam.fx, -cam.fz),
+            })
+          }
+          set({ gen: { status: 'done', stage: `done in ${Math.round((Date.now() - started) / 1000)} s` }, status: 'asset ready · unsaved' })
+          get().loadAssets()
+          return
+        }
+      }
+    } catch (err) {
+      set({ gen: { status: 'error', stage: '', error: String((err as Error).message ?? err) }, status: 'generation failed' })
+    }
+  },
+  cutScan: async () => {
+    const { config, items } = get()
+    const world = roomWorld(config)
+    const boxes = items.map((i) => i.cut).filter((b): b is number[] => Array.isArray(b) && b.length === 6)
+    if (!world || !config?.arena.room) return
+    set({ status: `cutting ${boxes.length} region(s) out of the scan…` })
+    try {
+      const r = await fetch('/__room-cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ world, boxes }) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error)
+      config.arena.room.splat = j.splat
+      set({ splatVersion: get().splatVersion + 1 })
+      await get().save()
+      set({ status: 'scan cut + saved' })
+    } catch (err) {
+      set({ status: `cut failed: ${String((err as Error).message ?? err).slice(0, 120)}` })
     }
   },
   loadAssets: async () => {

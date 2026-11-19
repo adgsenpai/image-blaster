@@ -386,6 +386,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     }
 
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.type === 'keyup') {
         keys.current.delete(e.code)
         return

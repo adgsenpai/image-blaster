@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { TransformControls } from '@react-three/drei'
-import { CuboidCollider, RigidBody } from '@react-three/rapier'
+import { CuboidCollider, RigidBody, useRapier } from '@react-three/rapier'
 import * as THREE from 'three'
 import { arenaFrame, type GameConfig } from './arena'
 import { roomFrame } from './DoorRoom'
@@ -124,6 +124,7 @@ export function RoomProps({ slug, config }: { slug: string; config: GameConfig }
     const onDown = (e: MouseEvent) => {
       if (e.button !== 0 || e.target !== gl.domElement) return
       if (tcRef.current?.axis) return // dragging the gizmo
+      if (useRoomEditor.getState().pick) return // drag-capturing a region of the scan
       const rect = gl.domElement.getBoundingClientRect()
       ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1)
       ray.setFromCamera(ndc, camera)
@@ -152,6 +153,7 @@ export function RoomProps({ slug, config }: { slug: string; config: GameConfig }
   useEffect(() => {
     if (!on) return
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       const s = useRoomEditor.getState()
       const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.code === 'KeyS') { e.preventDefault(); void s.save() }
@@ -166,9 +168,120 @@ export function RoomProps({ slug, config }: { slug: string; config: GameConfig }
         if (it) s.update(it.id, { scale: +Math.max(0.2, (it.scale ?? 1) * (e.code === 'BracketRight' ? 1.1 : 1 / 1.1)).toFixed(3) })
       }
     }
+    // Scroll wheel rotates the selection (15° steps with snap, 3° without, Shift = 1°).
+    let wheelCommit: ReturnType<typeof setTimeout> | undefined
+    const onWheel = (e: WheelEvent) => {
+      const s = useRoomEditor.getState()
+      const it = s.items.find((i) => i.id === s.selected)
+      if (!it || e.target !== gl.domElement) return
+      e.preventDefault()
+      const step = ((e.shiftKey ? 1 : s.snap ? 15 : 3) * Math.PI) / 180
+      const o = objects.current.get(it.id)?.o
+      if (!o) return
+      o.rotation.y += e.deltaY > 0 ? -step : step
+      clearTimeout(wheelCommit)
+      wheelCommit = setTimeout(() => useRoomEditor.getState().update(it.id, { rotY: +o.rotation.y.toFixed(4) }), 180)
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [on])
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('wheel', onWheel)
+      clearTimeout(wheelCommit)
+    }
+  }, [on, gl.domElement])
+
+  // "From the map": drag a rectangle over the scan -> capture that region of the frame, find where it is
+  // in 3D with a physics ray, and generate a clean movable asset there (optionally cutting the scan).
+  const pick = useRoomEditor((s) => s.pick)
+  const { world, rapier } = useRapier()
+  const scene = useThree((s) => s.scene)
+  useEffect(() => {
+    if (!on || !pick) return
+    const el = gl.domElement
+    const rectEl = document.createElement('div')
+    Object.assign(rectEl.style, { position: 'fixed', border: '2px dashed #ffd23f', background: 'rgba(255,210,63,0.08)', pointerEvents: 'none', zIndex: '40', display: 'none' })
+    document.body.appendChild(rectEl)
+    el.style.cursor = 'crosshair'
+    let start: { x: number; y: number } | null = null
+    const box = (e: MouseEvent) => {
+      const x0 = Math.min(start!.x, e.clientX)
+      const y0 = Math.min(start!.y, e.clientY)
+      return { x0, y0, w: Math.abs(e.clientX - start!.x), h: Math.abs(e.clientY - start!.y) }
+    }
+    const down = (e: MouseEvent) => {
+      if (e.button !== 0 || e.target !== el) return
+      start = { x: e.clientX, y: e.clientY }
+      rectEl.style.display = 'block'
+    }
+    const move = (e: MouseEvent) => {
+      if (!start) return
+      const b = box(e)
+      Object.assign(rectEl.style, { left: `${b.x0}px`, top: `${b.y0}px`, width: `${b.w}px`, height: `${b.h}px` })
+    }
+    const up = (e: MouseEvent) => {
+      if (!start) return
+      const b = box(e)
+      start = null
+      rectEl.style.display = 'none'
+      const s = useRoomEditor.getState()
+      if (b.w < 16 || b.h < 16) return
+      const r = el.getBoundingClientRect()
+      // Capture: render now and copy the pixels before the buffer is cleared.
+      gl.render(scene, camera)
+      const kx = el.width / r.width
+      const ky = el.height / r.height
+      const pad = 0.1
+      const sx = Math.max(0, (b.x0 - r.left - b.w * pad) * kx)
+      const sy = Math.max(0, (b.y0 - r.top - b.h * pad) * ky)
+      const sw = Math.min(el.width - sx, b.w * (1 + 2 * pad) * kx)
+      const sh = Math.min(el.height - sy, b.h * (1 + 2 * pad) * ky)
+      const c = document.createElement('canvas')
+      c.width = Math.round(sw)
+      c.height = Math.round(sh)
+      c.getContext('2d')!.drawImage(el, sx, sy, sw, sh, 0, 0, c.width, c.height)
+      const image = c.toDataURL('image/png')
+      // Where is it? Ray through the rectangle centre against the room colliders.
+      const cam = camera as THREE.PerspectiveCamera
+      const ndc = new THREE.Vector2(((b.x0 + b.w / 2 - r.left) / r.width) * 2 - 1, -((b.y0 + b.h / 2 - r.top) / r.height) * 2 + 1)
+      const rc = new THREE.Raycaster()
+      rc.setFromCamera(ndc, cam)
+      const origin = rc.ray.origin.clone().addScaledVector(rc.ray.direction, 0.5)
+      const hit = world.castRay(new rapier.Ray(origin, rc.ray.direction), 60, true)
+      const dist = 0.5 + (hit ? hit.timeOfImpact : 3)
+      const p = rc.ray.origin.clone().addScaledVector(rc.ray.direction, dist).sub(room.center)
+      const span = 2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)
+      const wH = (b.h / r.height) * span
+      const wW = (b.w / r.width) * span * cam.aspect
+      const bottom = Math.max(0, p.y - wH / 2)
+      const half = Math.max(wW, 0.3) / 2 * 1.1
+      const fwd = rc.ray.direction
+      s.setPick(false)
+      void s.generate(s.prompt, {
+        image,
+        strength: s.prompt.trim() ? 0.5 : 0.3,
+        target: {
+          at: [+p.x.toFixed(3), +bottom.toFixed(3), +p.z.toFixed(3)],
+          rotY: Math.atan2(-fwd.x, -fwd.z),
+          scale: +Math.max(wW, wH, 0.2).toFixed(3),
+          cut: [p.x - half, p.x + half, bottom - 0.03, bottom + wH * 1.08, p.z - half, p.z + half].map((v) => +v.toFixed(3)),
+        },
+      })
+    }
+    const esc = (e: KeyboardEvent) => e.code === 'Escape' && useRoomEditor.getState().setPick(false)
+    window.addEventListener('mousedown', down, true)
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('mousedown', down, true)
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+      window.removeEventListener('keydown', esc)
+      rectEl.remove()
+      el.style.cursor = ''
+    }
+  }, [on, pick, gl, scene, camera, world, rapier, room.center])
 
   const selObj = on && selected ? objects.current.get(selected)?.o : undefined
 

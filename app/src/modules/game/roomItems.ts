@@ -26,6 +26,8 @@ export interface RoomItem {
   url?: string
   name?: string
   door?: boolean
+  /** Room-local box [x0,x1,y0,y1,z0,z1] cut out of the scan for this (regenerated) asset. */
+  cut?: number[]
 }
 
 /** Types that block movement (bounding-box collider). Wall decor doesn't. */
