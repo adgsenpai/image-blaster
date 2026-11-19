@@ -1,0 +1,10 @@
+{
+  "provider": "local",
+  "model": "stabilityai/sd-turbo",
+  "upscaler": "RealESRGAN_x4plus",
+  "prompt": "seamless texture, light pine wood crate boards, horizontal planks, rough sawn, stencil marks, flat lighting, top-down photo",
+  "seed": 11,
+  "seamless": true,
+  "size": 1024,
+  "created_at": "2026-11-19T13:27:29.949479+00:00"
+}

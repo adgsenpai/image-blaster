@@ -1,0 +1,10 @@
+{
+  "provider": "local",
+  "model": "stabilityai/sd-turbo",
+  "upscaler": "RealESRGAN_x4plus",
+  "prompt": "seamless texture, weathered terracotta red painted plaster wall, chipped paint, cracks, grime, flat lighting, top-down photo, high detail",
+  "seed": 7,
+  "seamless": true,
+  "size": 1024,
+  "created_at": "2026-11-19T13:27:16.788912+00:00"
+}

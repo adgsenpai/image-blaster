@@ -33,14 +33,14 @@ the config lives in `local-gen/regions/rainy-bo-kaap-night-reflections-game.json
       - Delete removes the selection; `Ctrl+S` saves the props back to `game.json` through a dev-server endpoint
         (`/__game-config`, POST, writes `worlds/<slug>/game.json` and the `local-gen/regions` copy)
       - the HUD shows the selected object, its position and a cheat sheet
-- [ ] 6. **GPU textures.** Use the local GPU to make proper textures for the built parts (wood planks, plaster,
+- [x] 6. **GPU textures.** Use the local GPU to make proper textures for the built parts (wood planks, plaster,
       the door, sandbag fabric) from tileable procedural bases → Real-ESRGAN detail, matching the scan's palette
       (sample colours with `scan_stats`-style probes). If Hugging Face text-to-image is available (HF_TOKEN in .env;
       an ungated model such as `stabilityai/sdxl-turbo` running locally via diffusers fp16), generate the
       textures / a sign illustration from prompts instead.
-- [ ] 7. **Lighting pass.** Warm practical lights on the built parts that match the scan's baked lighting (chandelier,
+- [x] 7. **Lighting pass.** Warm practical lights on the built parts that match the scan's baked lighting (chandelier,
       lamps). The machines' glow should spill onto the floor; no flat-lit boxes.
-- [ ] 8. **Room QA.** Walk all four directions from 6+ spots, screenshot, and fix anything floating, intersecting or
+- [x] 8. **Room QA.** Walk all four directions from 6+ spots, screenshot, and fix anything floating, intersecting or
       blurry. Update the README showcase with a "room" section and screenshots.
 
 ## Rules

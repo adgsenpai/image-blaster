@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { gameTex } from './gameTextures'
 
 /**
  * A built back wall closing a scanned room where the scan only invented geometry:
@@ -11,6 +12,7 @@ export interface BackWallConfig {
   width: number
   height: number
   rotY: number
+  door?: boolean
 }
 
 function tex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, repeat?: [number, number]) {
@@ -31,62 +33,7 @@ function tex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D, w: numb
 let seed = 11
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
 
-function plaster(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  // Weathered terracotta-red plaster with lighter patches, like the scanned walls.
-  ctx.fillStyle = '#8c2f22'
-  ctx.fillRect(0, 0, w, h)
-  for (let i = 0; i < 900; i++) {
-    const a = rnd() * 0.12
-    ctx.fillStyle = rnd() < 0.5 ? `rgba(30,10,5,${a})` : `rgba(220,170,140,${a})`
-    const r = 4 + rnd() * 40
-    ctx.beginPath()
-    ctx.ellipse(rnd() * w, rnd() * h, r, r * (0.4 + rnd()), rnd() * 3, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  for (let i = 0; i < 14; i++) {
-    // Chipped patches showing pale plaster underneath.
-    ctx.fillStyle = `rgba(200,180,155,${0.35 + rnd() * 0.3})`
-    ctx.beginPath()
-    const x = rnd() * w
-    const y = rnd() * h
-    ctx.moveTo(x, y)
-    for (let k = 0; k < 7; k++) ctx.lineTo(x + (rnd() - 0.5) * 120, y + (rnd() - 0.5) * 80)
-    ctx.fill()
-  }
-  for (let i = 0; i < 40; i++) {
-    ctx.strokeStyle = `rgba(20,8,4,${0.15 + rnd() * 0.2})`
-    ctx.lineWidth = 1 + rnd() * 2
-    ctx.beginPath()
-    const x = rnd() * w
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x + (rnd() - 0.5) * 30, h * (0.2 + rnd() * 0.6))
-    ctx.stroke()
-  }
-}
-
-function planks(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  const n = 8
-  for (let i = 0; i < n; i++) {
-    const x = (i * w) / n
-    const b = 0.75 + rnd() * 0.35
-    ctx.fillStyle = `rgb(${Math.round(92 * b)},${Math.round(60 * b)},${Math.round(36 * b)})`
-    ctx.fillRect(x, 0, w / n, h)
-    for (let g = 0; g < 26; g++) {
-      ctx.strokeStyle = `rgba(30,18,8,${0.15 + rnd() * 0.25})`
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      const gx = x + rnd() * (w / n)
-      ctx.moveTo(gx, 0)
-      ctx.bezierCurveTo(gx + (rnd() - 0.5) * 8, h / 3, gx + (rnd() - 0.5) * 8, (2 * h) / 3, gx + (rnd() - 0.5) * 6, h)
-      ctx.stroke()
-    }
-    ctx.fillStyle = 'rgba(15,8,3,0.85)'
-    ctx.fillRect(x, 0, 3, h)
-  }
-}
-
 function doorTex(ctx: CanvasRenderingContext2D, w: number, h: number) {
-  planks(ctx, w, h)
   // Two recessed panels + scuffs + a stencilled warning.
   ctx.strokeStyle = 'rgba(20,10,4,0.8)'
   ctx.lineWidth = 10
@@ -126,8 +73,8 @@ export function buildBackWall(cfg: BackWallConfig) {
   const DOOR_H = 2.35
   const WAIN = 1.05
 
-  const plasterMat = new THREE.MeshStandardMaterial({ map: tex(1024, 512, plaster, [W / 4, H / 2]), roughness: 0.95 })
-  const woodMat = new THREE.MeshStandardMaterial({ map: tex(512, 256, planks, [W / 2, 1]), roughness: 0.8 })
+  const plasterMat = new THREE.MeshStandardMaterial({ color: '#d0705c', map: gameTex('plaster', [W / 3.5, H / 3.5]), roughness: 0.95 })
+  const woodMat = new THREE.MeshStandardMaterial({ map: gameTex('wood', [W / 1.4, 0.75]), roughness: 0.8 })
   const trimMat = new THREE.MeshStandardMaterial({ color: '#3a2414', roughness: 0.7 })
 
   // Wall slab with a door-shaped hole: build it from pieces around the doorway.
@@ -143,19 +90,27 @@ export function buildBackWall(cfg: BackWallConfig) {
     add(new THREE.BoxGeometry(side, H - WAIN, T), plasterMat, s * (DOOR_W / 2 + side / 2), WAIN + (H - WAIN) / 2, -T / 2)
     add(new THREE.BoxGeometry(side, WAIN, T + 0.03), woodMat, s * (DOOR_W / 2 + side / 2), WAIN / 2, -T / 2)
   }
-  add(new THREE.BoxGeometry(DOOR_W, H - DOOR_H, T), plasterMat, 0, DOOR_H + (H - DOOR_H) / 2, -T / 2)
   // Chair rail along the top of the wainscot.
   add(new THREE.BoxGeometry(W, 0.06, 0.06), trimMat, 0, WAIN, 0.02)
   add(new THREE.BoxGeometry(W, 0.12, 0.04), trimMat, 0, 0.06, 0.01)
+  if (cfg.door === false) {
+    // Plain panel: fill the doorway gap and stop (used to cover invented scan walls).
+    add(new THREE.BoxGeometry(DOOR_W, H - WAIN, T), plasterMat, 0, WAIN + (H - WAIN) / 2, -T / 2)
+    add(new THREE.BoxGeometry(DOOR_W, WAIN, T + 0.03), woodMat, 0, WAIN / 2, -T / 2)
+    return g
+  }
+  add(new THREE.BoxGeometry(DOOR_W, H - DOOR_H, T), plasterMat, 0, DOOR_H + (H - DOOR_H) / 2, -T / 2)
 
   // Door frame + two leaves (slightly ajar texture variety).
   add(new THREE.BoxGeometry(0.12, DOOR_H + 0.1, T + 0.08), trimMat, -DOOR_W / 2 - 0.02, DOOR_H / 2, -T / 2)
   add(new THREE.BoxGeometry(0.12, DOOR_H + 0.1, T + 0.08), trimMat, DOOR_W / 2 + 0.02, DOOR_H / 2, -T / 2)
   add(new THREE.BoxGeometry(DOOR_W + 0.28, 0.14, T + 0.08), trimMat, 0, DOOR_H + 0.05, -T / 2)
-  const doorMat = new THREE.MeshStandardMaterial({ map: tex(256, 512, doorTex), roughness: 0.75 })
+  const doorMat = new THREE.MeshStandardMaterial({ color: '#9a7458', map: gameTex('wood', [0.5, 0.6]), roughness: 0.7 })
+  const stencil = new THREE.MeshStandardMaterial({ map: tex(256, 512, doorTex), transparent: true, roughness: 0.9 })
   const brass = new THREE.MeshStandardMaterial({ color: '#b08d3c', metalness: 0.9, roughness: 0.35 })
   for (const s of [-1, 1]) {
     add(new THREE.BoxGeometry(DOOR_W / 2 - 0.02, DOOR_H - 0.02, 0.06), doorMat, s * (DOOR_W / 4), DOOR_H / 2, -0.08)
+    add(new THREE.PlaneGeometry(DOOR_W / 2 - 0.02, DOOR_H - 0.02), stencil, s * (DOOR_W / 4), DOOR_H / 2, -0.048)
     add(new THREE.BoxGeometry(0.04, 0.42, 0.05), brass, s * 0.1, 1.05, -0.02)
   }
   // Push bar across both leaves.
@@ -189,7 +144,7 @@ export function buildBackWall(cfg: BackWallConfig) {
 
   // Boarded windows either side.
   const glass = new THREE.MeshStandardMaterial({ color: '#0b1220', emissive: '#1a2740', emissiveIntensity: 0.6, roughness: 0.2, metalness: 0.3 })
-  const boardMats = ['#5a3d26', '#6b4a2e', '#4a3220'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }))
+  const boardMats = ['#c9a27a', '#b08a66', '#9c7a5a'].map((c) => new THREE.MeshStandardMaterial({ color: c, map: gameTex('wood', [1, 0.15]), roughness: 0.85 }))
   for (const s of [-1, 1]) {
     const cx = s * (DOOR_W / 2 + side / 2 + 0.15)
     if (side < 1.4) continue

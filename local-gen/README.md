@@ -211,6 +211,28 @@ the integrated Intel GPU (`chrome://gpu` shows "Mesa Intel") it drops to about 4
 - **Doors:** E at a door fades into a placeholder room and E takes you back out. Zombies pause while you're inside.
   Doors are configured in `game.json` → `arena.doors`.
 
+## The Survivor Trader room + in-game room editor
+
+![trader room](../docs/showcase/18-trader-room-snapped.png)
+
+The room behind the door is a second World Labs world built from one photo (`worlds/survivor-trader-room`), cleaned up on the GPU:
+
+- **Clean scan:** `clip_room.py` keeps the full-res splat but drops what the photo never saw: the space behind the camera
+  (`--keep-front`), the barely reconstructed kitchen, the smeared vending machines and grey haze (`--remove-grey`).
+- **Props sit flush:** the room is turned about 22° to the camera, which is why axis-aligned guesses floated. `room_snap.py` casts rays on
+  the GPU (torch/CUDA Möller–Trumbore) against the World Labs collider mesh to place the machines, sign and price board on the real
+  walls and floor. `room_walls.py` and `room_aligned.py` print floor, ceiling and wall depths, plus a room-aligned top-down map.
+- **Built where the scan invented:** `RoomBackWall` gives you a plaster-over-wainscot back wall with a real double EXIT door,
+  a lit sign, caged lamps and boarded windows. A plain panel covers a fake niche, and the kitchen arch is planked and sandbagged.
+- **GPU textures:** `tex_gen.py` runs SD-Turbo (Hugging Face) locally with circular padding to make seamless plaster,
+  wood, burlap, crate and rusted-steel textures, then upscales them with Real-ESRGAN (`app/public/game/textures`).
+- **Room editor (F2 inside):** WASD walks and right-drag looks. Click a prop to select it, then drag the gizmo
+  (G move / R rotate / X snap / `[` `]` scale). Del deletes, Ctrl+D duplicates, Ctrl+Z undoes, and Ctrl+S saves to `game.json`. The palette adds
+  machines, signs, crates, barrels, sandbags, planks, lanterns, barricades and any GLB in `public/game` or `worlds/*/output`.
+  Perk hotspots follow their machines.
+- **Gameplay:** you start with a knife and a weak 9mm. The magnum, shotgun, AK-47 and sniper are rack buys. Zombies get tougher and hit harder
+  every round, and your health regenerates after 4 s without taking damage.
+
 ## Credits
 
 - **IMAGE-BLASTER** by [Neilson Koerner-Safrata](https://github.com/neilsonnn) ([neilsonnn/image-blaster](https://github.com/neilsonnn/image-blaster)), MIT.

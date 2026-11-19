@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { buildBackWall } from './RoomBackWall'
+import { gameTex } from './gameTextures'
 import { PERKS, WEAPONS, type PerkId } from './weapons'
 
 /**
@@ -24,6 +25,7 @@ export interface RoomItem {
   height?: number
   url?: string
   name?: string
+  door?: boolean
 }
 
 /** Types that block movement (bounding-box collider). Wall decor doesn't. */
@@ -203,26 +205,6 @@ function archTexture(w: number, h: number) {
   })
 }
 
-function woodTex() {
-  return cached('wood', () => canvasTex(256, 256, (ctx) => {
-    for (let i = 0; i < 4; i++) {
-      const b = 0.75 + rnd() * 0.35
-      ctx.fillStyle = `rgb(${Math.round(120 * b)},${Math.round(84 * b)},${Math.round(50 * b)})`
-      ctx.fillRect(0, i * 64, 256, 64)
-      for (let g = 0; g < 18; g++) {
-        ctx.strokeStyle = `rgba(40,22,10,${0.15 + rnd() * 0.25})`
-        ctx.beginPath()
-        const y = i * 64 + rnd() * 64
-        ctx.moveTo(0, y)
-        ctx.bezierCurveTo(85, y + (rnd() - 0.5) * 8, 170, y + (rnd() - 0.5) * 8, 256, y + (rnd() - 0.5) * 6)
-        ctx.stroke()
-      }
-      ctx.fillStyle = 'rgba(20,10,4,0.8)'
-      ctx.fillRect(0, i * 64, 256, 3)
-    }
-  }))
-}
-
 function rustTex() {
   return cached('rust', () => canvasTex(256, 256, (ctx) => {
     ctx.fillStyle = '#3d4a3a'
@@ -289,7 +271,7 @@ function arch(w: number, height: number) {
   const back = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.6, height), mat({ map: archTexture(1024, Math.round((1024 * height) / (w + 0.6))), roughness: 1 }))
   back.position.set(0, height / 2, -0.25)
   g.add(back)
-  const wood = ['#5a3d26', '#6b4a2e', '#4a3220', '#7a5634'].map((c) => mat({ color: c, map: woodTex(), roughness: 0.85 }))
+  const wood = ['#d0b090', '#b89878', '#a08060', '#c8a888'].map((c) => mat({ color: c, map: gameTex('wood', [w / 1.5, 0.12]), roughness: 0.85 }))
   for (let i = 0; i < 9; i++) {
     const plank = new THREE.Mesh(new THREE.BoxGeometry(w * 0.98, 0.18, 0.045), wood[i % 4])
     plank.position.set((r() - 0.5) * 0.15, 0.55 + (i / 8) * (height - 1.0), 0.02 + i * 0.004)
@@ -302,7 +284,7 @@ function arch(w: number, height: number) {
 
 function sandbags(w: number, z = 0) {
   const g = new THREE.Group()
-  const sack = mat({ color: '#8b7a5a', roughness: 1 })
+  const sack = mat({ color: '#b8a888', map: gameTex('sandbag', [3, 2]), roughness: 1 })
   const n = Math.max(1, Math.floor(w / 0.55))
   for (let row = 0; row < 3; row++) {
     for (let k = 0; k < n - (row % 2); k++) {
@@ -318,7 +300,7 @@ function sandbags(w: number, z = 0) {
 
 function crate() {
   const g = new THREE.Group()
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), mat({ map: woodTex(), color: '#b08a60', roughness: 0.85 }))
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), mat({ map: gameTex('crate', [1, 0.9]), roughness: 0.85 }))
   box.position.y = 0.35
   g.add(box)
   const edge = mat({ color: '#3a2414', roughness: 0.8 })
@@ -339,7 +321,10 @@ function crate() {
 
 function barrel() {
   const g = new THREE.Group()
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 24), mat({ map: rustTex(), metalness: 0.5, roughness: 0.6 }))
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 24), mat({ map: gameTex('rust', [2, 1]), metalness: 0.45, roughness: 0.65 }))
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.292, 0.292, 0.12, 24, 1, true), mat({ map: rustTex(), metalness: 0.4, roughness: 0.6 }))
+  band.position.y = 0.44
+  g.add(band)
   body.position.y = 0.44
   const ringMat = mat({ color: '#2a2f28', metalness: 0.7, roughness: 0.5 })
   for (const y of [0.22, 0.66]) {
@@ -354,7 +339,7 @@ function barrel() {
 
 function planks() {
   const g = new THREE.Group()
-  const wood = ['#5a3d26', '#6b4a2e', '#4a3220'].map((c) => mat({ color: c, map: woodTex(), roughness: 0.85 }))
+  const wood = ['#d0b090', '#b89878', '#a08060'].map((c) => mat({ color: c, map: gameTex('wood', [1.2, 0.12]), roughness: 0.85 }))
   for (let i = 0; i < 6; i++) {
     const p = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 0.2), wood[i % 3])
     p.position.set((rnd() - 0.5) * 0.1, 0.02 + Math.floor(i / 2) * 0.045, (i % 2) * 0.22 - 0.11)
@@ -414,7 +399,7 @@ export function buildItem(it: RoomItem): THREE.Group {
     }
     case 'arch': return arch(it.width ?? 3, it.height ?? 3)
     case 'backWall': {
-      const g = buildBackWall({ at: [0, 0, 0], width: it.width ?? 7, height: it.height ?? 4.5, rotY: 0 })
+      const g = buildBackWall({ at: [0, 0, 0], width: it.width ?? 7, height: it.height ?? 4.5, rotY: 0, door: it.door })
       return g
     }
     case 'crate': return crate()

@@ -1,0 +1,10 @@
+{
+  "provider": "local",
+  "model": "stabilityai/sd-turbo",
+  "upscaler": "RealESRGAN_x4plus",
+  "prompt": "seamless texture, aged dark oak wood grain, rich brown, scuffed, flat lighting, top-down photo, high detail",
+  "seed": 9,
+  "seamless": true,
+  "size": 1024,
+  "created_at": "2026-11-19T13:27:23.355642+00:00"
+}

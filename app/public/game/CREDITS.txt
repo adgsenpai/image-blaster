@@ -8,3 +8,7 @@ sfx/reload_pistol.ogg, sfx/reload_rifle.ogg: from "Gun reload sounds", listed CC
 sfx/zombie/*.ogg: trimmed from "Zombies Sound Pack" by artisticdude, CC0, https://opengameart.org/content/zombies-sound-pack
 guns/shotgun.glb: "Shotgun" by Quaternius, CC0 1.0, https://poly.pizza/m/DcNE0HVdW8
 sfx/shotgun.ogg: trimmed from "Gunshot sounds" (shotty.wav) by Vincent Sevedge, CC-BY 3.0, https://opengameart.org/content/gunshot-sounds
+
+Room textures (app/public/game/textures/*.jpg): generated locally with stabilityai/sd-turbo
+(Stability AI Community License) using circular padding for seamless tiling, upscaled with
+Real-ESRGAN x4plus (BSD-3-Clause). Prompts + seeds in the hidden .<name>-request.json sidecars.
