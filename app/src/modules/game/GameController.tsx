@@ -78,7 +78,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   const shopSpots = useMemo(() => (frame.config.shop ?? []).map((sp) => ({ ...sp, world: room.toWorld(...sp.at) })), [frame, room])
   const activeShop = useRef<(typeof shopSpots)[number] | null>(null)
   /** Weapon rack menu: F cycles, E buys. */
-  const RACK: ('ammo' | WeaponId)[] = ['pistol', 'shotgun', 'mg', 'sniper', 'ammo']
+  const RACK: ('ammo' | WeaponId)[] = ['magnum', 'shotgun', 'mg', 'sniper', 'ammo']
   const rackIndex = useRef(0)
   const shopPrompt = (sp: (typeof shopSpots)[number]) => {
     const s = useGameStore.getState()
@@ -548,6 +548,10 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     }
   }), [])
   const heartbeat = useRef(0)
+  const sinceHurt = useRef(99)
+  useEffect(() => useGameStore.subscribe((st, prev) => {
+    if (st.hurtToken !== prev.hurtToken) sinceHurt.current = 0
+  }), [])
 
   // Release the mouse when the player dies so the HUD buttons are clickable.
   const phase = useGameStore((s) => s.phase)
@@ -564,6 +568,9 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     const def = WEAPONS[s.weapon]
 
     cooldown.current = Math.max(0, cooldown.current - delta)
+    // Regenerate once you've avoided damage for a few seconds.
+    sinceHurt.current += delta
+    if (active && sinceHurt.current > 4 && s.health < 100) s.heal(delta * 22)
     // Heartbeat when badly hurt, faster the closer to death.
     if (active && s.health <= 30) {
       heartbeat.current -= delta

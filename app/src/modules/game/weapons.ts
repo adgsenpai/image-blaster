@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-export type WeaponId = 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife'
+export type WeaponId = 'pistol' | 'magnum' | 'mg' | 'shotgun' | 'sniper' | 'knife'
 
 export interface WeaponDef {
   id: WeaponId
@@ -50,28 +50,35 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     price: 0, reserve: 0, ammoPrice: 0,
   },
   pistol: {
-    id: 'pistol', name: '.44 magnum', slot: 2, mag: 6, interval: 0.32, auto: false, reload: 1.7,
+    id: 'pistol', name: '9mm pistol', slot: 2, mag: 8, interval: 0.2, auto: false, reload: 1.2,
+    bodyDamage: 0.8, headDamage: 3, range: 60, pierce: false,
+    hipSpread: 0.012, adsSpread: 0.003, adsFov: 60, scope: false, kick: 0.014,
+    hip: [0.2, -0.19, -0.42], aim: [0, -0.112, -0.33], muzzle: [0, 0.022, -0.21],
+    price: 0, reserve: 48, ammoPrice: 150,
+  },
+  magnum: {
+    id: 'magnum', name: '.44 magnum', slot: 3, mag: 6, interval: 0.32, auto: false, reload: 1.7,
     bodyDamage: 2.2, headDamage: 99, range: 90, pierce: false,
     hipSpread: 0.008, adsSpread: 0.001, adsFov: 52, scope: false, kick: 0.04,
     hip: [0.2, -0.19, -0.42], aim: [0, -0.112, -0.33], muzzle: [0, 0.022, -0.21],
     price: 3500, reserve: 36, ammoPrice: 350,
   },
   shotgun: {
-    id: 'shotgun', name: 'shotgun', slot: 3, mag: 6, interval: 0.75, auto: false, reload: 2.1,
+    id: 'shotgun', name: 'shotgun', slot: 4, mag: 6, interval: 0.75, auto: false, reload: 2.1,
     bodyDamage: 0.9, headDamage: 3, range: 28, pierce: false, pellets: 8,
     hipSpread: 0.07, adsSpread: 0.045, adsFov: 62, scope: false, kick: 0.06,
     hip: [0.22, -0.2, -0.46], aim: [0, -0.13, -0.38], muzzle: [0, 0.015, -0.55],
     price: 4500, reserve: 30, ammoPrice: 250,
   },
   mg: {
-    id: 'mg', name: 'AK-47', slot: 4, mag: 30, interval: 0.1, auto: true, reload: 2.2,
+    id: 'mg', name: 'AK-47', slot: 5, mag: 30, interval: 0.1, auto: true, reload: 2.2,
     bodyDamage: 1, headDamage: 4, range: 80, pierce: false,
     hipSpread: 0.028, adsSpread: 0.008, adsFov: 52, scope: false, kick: 0.009,
     hip: [0.22, -0.2, -0.46], aim: [0, -0.128, -0.38], muzzle: [0, 0.015, -0.52],
     price: 5500, reserve: 150, ammoPrice: 300,
   },
   sniper: {
-    id: 'sniper', name: 'sniper rifle', slot: 5, mag: 5, interval: 1.15, auto: false, reload: 2.6,
+    id: 'sniper', name: 'sniper rifle', slot: 6, mag: 5, interval: 1.15, auto: false, reload: 2.6,
     bodyDamage: 99, headDamage: 99, range: 150, pierce: true,
     hipSpread: 0.06, adsSpread: 0, adsFov: 12, scope: true, kick: 0.05,
     hip: [0.22, -0.2, -0.45], aim: [0, -0.15, -0.3], muzzle: [0, 0.012, -0.78],
@@ -79,7 +86,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
   },
 }
 
-export const WEAPON_ORDER: WeaponId[] = ['knife', 'pistol', 'shotgun', 'mg', 'sniper']
+export const WEAPON_ORDER: WeaponId[] = ['knife', 'pistol', 'magnum', 'shotgun', 'mg', 'sniper']
 
 /** Cape Town perk drinks (original names): effects are applied in the controller / store. */
 export type PerkId = 'rooibos' | 'tonic'
@@ -205,6 +212,7 @@ export function buildGrenade() {
 export function buildViewmodel(id: WeaponId) {
   switch (id) {
     case 'pistol': return buildPistol()
+    case 'magnum': return buildPistol()
     case 'shotgun': return buildMachineGun()
     case 'mg': return buildMachineGun()
     case 'sniper': return buildSniper()

@@ -143,12 +143,13 @@ export const sfx = {
     if (!ac) return
     if (!zombieVoice(ac, kind, x, z) && kind === 'groan') sfx.groan()
   },
-  shot(kind: 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
+  shot(kind: 'pistol' | 'magnum' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
     // Magnum = pistol recording pitched down for a heavier boom.
-    if (kind === 'pistol' && playSample(ac, 'pistol', 0.95, 0.78)) return
-    if (kind !== 'knife' && kind !== 'pistol' && playSample(ac, kind, kind === 'mg' ? 0.55 : 0.85)) return
+    if (kind === 'magnum' && playSample(ac, 'pistol', 0.95, 0.78)) return
+    if (kind === 'pistol' && playSample(ac, 'pistol', 0.6, 1.12)) return
+    if (kind !== 'knife' && kind !== 'pistol' && kind !== 'magnum' && playSample(ac, kind, kind === 'mg' ? 0.55 : 0.85)) return
     if (kind === 'sniper') {
       noise(ac, 0.6, 1800, 0.8)
       noise(ac, 0.12, 8000, 0.35, 'highpass')
@@ -242,10 +243,10 @@ export const sfx = {
     if (!ac) return
     tone(ac, 'square', 1800, 1200, 0.03, 0.08)
   },
-  reload(kind: 'pistol' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
+  reload(kind: 'pistol' | 'magnum' | 'mg' | 'shotgun' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
-    if (kind !== 'knife' && playSample(ac, kind === 'pistol' ? 'reloadPistol' : 'reloadRifle', 0.7)) return
+    if (kind !== 'knife' && playSample(ac, kind === 'pistol' || kind === 'magnum' ? 'reloadPistol' : 'reloadRifle', 0.7)) return
     tone(ac, 'square', 900, 600, 0.04, 0.07)
     tone(ac, 'square', 700, 1100, 0.05, 0.07, 0.9)
   },

@@ -133,7 +133,7 @@ function boardTexture(w: number, h: number) {
     ctx.font = `bold ${h * 0.09}px monospace`
     ctx.fillText('SHOP', w * 0.12, h * 0.13)
     const rows: [string, string][] = [
-      ...(['pistol', 'shotgun', 'mg', 'sniper'] as const).map((id) => [({ pistol: 'magnum', shotgun: 'shotgun', mg: 'AK-47', sniper: 'sniper' } as const)[id], `R${WEAPONS[id].price.toLocaleString('en-ZA')}`] as [string, string]),
+      ...(['magnum', 'shotgun', 'mg', 'sniper'] as const).map((id) => [({ magnum: 'magnum', shotgun: 'shotgun', mg: 'AK-47', sniper: 'sniper' } as const)[id], `R${WEAPONS[id].price.toLocaleString('en-ZA')}`] as [string, string]),
       ['ammo', 'R250-350'],
       [PERKS.rooibos.name, `R${PERKS.rooibos.price.toLocaleString('en-ZA')}`],
       ['Mtn Tonic', `R${PERKS.tonic.price.toLocaleString('en-ZA')}`],

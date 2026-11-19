@@ -5,6 +5,7 @@ import type { WeaponId } from './weapons'
 /** CC0 Quaternius gun models (see public/game/CREDITS.txt). */
 const GUNS: Partial<Record<WeaponId, { url: string; rotY: number }>> = {
   pistol: { url: '/game/guns/pistol.glb', rotY: 0 },
+  magnum: { url: '/game/guns/pistol.glb', rotY: 0 },
   mg: { url: '/game/guns/rifle.glb', rotY: Math.PI / 2 },
   shotgun: { url: '/game/guns/shotgun.glb', rotY: Math.PI / 2 },
   sniper: { url: '/game/guns/sniper.glb', rotY: Math.PI / 2 },

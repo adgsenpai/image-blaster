@@ -12,7 +12,7 @@ const SHIRT = ['#3a2f2c', '#2d3a4a', '#4a3a28', '#5a2626', '#3c4a34', '#55504a']
 const PANTS = ['#1e232e', '#2a2622', '#232a22']
 const ATTACK_RANGE = 1.05
 const ATTACK_INTERVAL = 0.9
-const ATTACK_DAMAGE = 12
+const ATTACK_DAMAGE = 10
 const BREAK_SECONDS = 4
 
 interface Zombie {
@@ -277,7 +277,8 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
 
   const spawnZombie = (number: number) => {
     const z = makeZombie(nextId++)
-    z.hp = 3 + Math.floor(number / 3)
+    // Tougher every round.
+    z.hp = 2 + number * 0.6
     z.speed = Math.min(2.7, 0.9 + number * 0.14 + Math.random() * 0.35)
     const points = frame.config.spawnPoints
     if (points.length) {
@@ -457,7 +458,8 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       z.parts.armR.rotation.x = -1.45 + Math.sin(z.phase) * 0.12 - claw * 0.8
       if (playing && inRange && z.attackCooldown === 0) {
         z.attackCooldown = ATTACK_INTERVAL
-        s.damage(ATTACK_DAMAGE)
+        // Hits harder every round.
+        s.damage(Math.min(40, ATTACK_DAMAGE + (s.wave - 1) * 2))
         sfx.hurt()
         sfx.zombie('attack', r.position.x, r.position.z)
       }

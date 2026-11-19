@@ -57,6 +57,7 @@ interface GameStore {
   buyPerk: (id: PerkId) => string
   finishDrink: () => void
   setReserve: (weapon: WeaponId, n: number) => void
+  heal: (n: number) => void
   enter: () => void
   exit: () => void
   start: () => void
@@ -80,11 +81,11 @@ const freshRun = () => ({
   prompt: '',
   fade: 0,
   health: MAX_HEALTH,
-  weapon: 'knife' as WeaponId,
+  weapon: 'pistol' as WeaponId,
   ammo: fullAmmo(),
   money: 500,
-  owned: ['knife'] as WeaponId[],
-  reserve: Object.fromEntries(WEAPON_ORDER.map((id) => [id, 0])) as Ammo,
+  owned: ['knife', 'pistol'] as WeaponId[],
+  reserve: Object.fromEntries(WEAPON_ORDER.map((id) => [id, id === 'pistol' ? WEAPONS.pistol.reserve : 0])) as Ammo,
   perks: [] as PerkId[],
   drinking: null as PerkId | null,
   reloading: false,
@@ -133,6 +134,7 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     return { health, hurtToken: s.hurtToken + 1, ...(health === 0 ? { phase: 'dead' as const, ads: false } : {}) }
   }),
   addMoney: (n) => set((s) => ({ money: s.money + n })),
+  heal: (n) => set((s) => (s.phase === 'playing' && s.health < MAX_HEALTH ? { health: Math.min(MAX_HEALTH, s.health + n) } : {})),
   setReserve: (weapon, n) => set((s) => ({ reserve: { ...s.reserve, [weapon]: n } })),
   buyWeapon: (id) => {
     const s = get()
