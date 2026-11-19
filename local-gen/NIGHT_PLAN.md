@@ -32,3 +32,14 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 - Only CC0 / public-domain downloads; record the source in `app/public/game/CREDITS.txt`.
 - Don't break the scanned world or the stage. Keep about 45 fps or better.
 - Commit after every item.
+
+## Extra polish (for later runs, in order)
+
+- [ ] 10. **Grittier zombies**: desaturate and darken the Quaternius atlas per zombie, add grime/blood tint to the
+      material (onBeforeCompile or vertex colour), so they read less cartoony at night.
+- [ ] 11. **Zombie voices**: find CC0 zombie groan/attack/death recordings (OpenGameArt, check each licence) and play them
+      positionally (PannerNode at the zombie position), keeping the synth as fallback.
+- [ ] 12. **Muzzle smoke + shell casings**: a short-lived smoke puff at the muzzle and ejected brass casings that bounce on the street.
+- [ ] 13. **More doors**: add 2 to 3 more scan doors to `arena.doors` (walk the street with `window.__fps` and screenshot to place them).
+- [ ] 14. **Hit feedback**: hitmarker sound, slight camera kick on damage, and a low-health heartbeat.
+- [ ] 15. **Morning summary**: refresh README screenshots (gameplay with zombies + gore), then post a short summary.
