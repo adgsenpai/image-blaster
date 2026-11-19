@@ -49,6 +49,8 @@ export interface ModelZombie {
   bones: Record<string, THREE.Bone>
   headBox: THREE.Mesh
   bodyBox: THREE.Mesh
+  /** Bones collapsed by dismemberment (re-applied after every mixer update). */
+  severed: Set<string>
 }
 
 const CLIP_NAMES: Record<ZombieClip, string> = {
@@ -106,7 +108,7 @@ export function createModelZombie(t: Template, id: number): ModelZombie {
     }
     actions[key] = a
   }
-  return { root, model, mixer, actions, current: null, mats, bones, headBox, bodyBox }
+  return { root, model, mixer, actions, current: null, mats, bones, headBox, bodyBox, severed: new Set() }
 }
 
 /** Crossfade to a looping/one-shot clip. */
@@ -128,4 +130,22 @@ export function syncHitboxes(z: ModelZombie) {
   head.getWorldPosition(_v)
   z.root.worldToLocal(_v)
   z.headBox.position.copy(_v).add(new THREE.Vector3(0, 0.08, 0))
+}
+
+/** Collapse a bone (and everything skinned to its children) to remove that body part. */
+export function sever(z: ModelZombie, bone: string) {
+  if (!z.bones[bone]) return false
+  if (z.severed.has(bone)) return false
+  z.severed.add(bone)
+  return true
+}
+
+export function applySevered(z: ModelZombie) {
+  for (const name of z.severed) z.bones[name]?.scale.setScalar(0.0001)
+}
+
+/** World position of a bone (e.g. the neck stump after a head pop). */
+export function boneWorld(z: ModelZombie, bone: string, out = new THREE.Vector3()) {
+  const b = z.bones[bone]
+  return b ? b.getWorldPosition(out) : z.root.getWorldPosition(out).setY(out.y + 1.5)
 }

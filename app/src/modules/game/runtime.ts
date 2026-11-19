@@ -25,6 +25,18 @@ export const zombieApi = {
   radius: null as ((point: THREE.Vector3, radius: number, maxDamage: number) => number) | null,
 }
 
+/** Implemented by <Gore>: blood sprays, pools and flying gibs. */
+export const goreApi = {
+  /** Spray `count` blood particles from `point`, biased along `dir`. */
+  spray: null as ((point: THREE.Vector3, dir: THREE.Vector3, count: number, force?: number) => void) | null,
+  /** Blood pool / splat decal on the ground under `point`. */
+  pool: null as ((point: THREE.Vector3, size: number) => void) | null,
+  /** Flying body part. */
+  gib: null as ((kind: 'head' | 'arm' | 'leg', point: THREE.Vector3, velocity: THREE.Vector3, skin: THREE.Color) => void) | null,
+  /** Ground height for effects. */
+  floorY: 0,
+}
+
 /** Implemented by <Grenades>, called by the controller. */
 export const grenadeApi = {
   throw: null as ((origin: THREE.Vector3, velocity: THREE.Vector3) => void) | null,

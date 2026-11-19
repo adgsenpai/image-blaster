@@ -15,9 +15,9 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
       (Quaternius, CC0, 50-bone rig; clips Walk / Run / Punch / Death / HitReact / Crawl / Idle).
       Use SkeletonUtils.clone per zombie and an AnimationMixer. Raycast hits via bone proximity
       or a hidden capsule hitbox per zombie, with head and limb hitboxes.
-- [ ] 2. **Gore**: headshot pops the head (scale the `Head` bone to 0, spawn a flying head gib and a blood fountain).
+- [x] 2. **Gore**: headshot pops the head (scale the `Head` bone to 0, spawn a flying head gib and a blood fountain).
       Leg damage shears off a leg (scale `UpperLeg.*`) and switches to the `Crawl` clip. Arm hits shear off an arm.
-- [ ] 3. **Blood**: particle sprays on every hit, plus blood pool decals on the street that fade slowly.
+- [x] 3. **Blood**: particle sprays on every hit, plus blood pool decals on the street that fade slowly.
 - [ ] 4. **Ragdoll-ish deaths**: play the Death clip, add knockback along the shot and settle on the ground. Simple physics bodies for gibs.
 - [ ] 5. **Bullet impacts**: rapier `castRayAndGetNormal` against the world collider gives a bullet-hole decal
       (oriented to the normal, capped at 80, oldest removed) plus a dust/spark puff.

@@ -24,6 +24,7 @@ import { ArenaWalls } from '../modules/game/ArenaWalls'
 import { GameController } from '../modules/game/GameController'
 import { Zombies } from '../modules/game/Zombies'
 import { Grenades } from '../modules/game/Grenades'
+import { Gore } from '../modules/game/Gore'
 import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
@@ -293,6 +294,7 @@ export function WorldViewer({
             )}
             {gameOn && gameConfig && <Zombies arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Grenades arena={gameConfig.arena} />}
+            {gameOn && gameConfig && <Gore />}
             {showObjects && !editing && !gameOn && (
               <Suspense fallback={null}>
                 <ObjectGrid
