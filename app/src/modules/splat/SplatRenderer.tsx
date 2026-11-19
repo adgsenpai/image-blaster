@@ -26,8 +26,17 @@ const SparkRendererEl = extend(SparkRenderer)
 const SplatMeshEl = extend(SplatMesh)
 const ignoreRaycast: THREE.Object3D['raycast'] = () => {}
 
+export interface ExtraSplat {
+  url: string
+  position: [number, number, number]
+  flipY: boolean
+  scale: number
+}
+
 interface Props {
   url: string
+  /** Additional splat worlds rendered by the same Spark renderer (e.g. a room interior). */
+  extras?: ExtraSplat[]
   visible?: boolean
   groundPlaneOffset?: number
   flipY?: boolean
@@ -41,6 +50,7 @@ export function SplatRenderer({
   groundPlaneOffset = 0,
   flipY,
   metricScaleFactor = 1,
+  extras = [],
 }: Props) {
     const renderer = useThree((state) => state.gl)
     const viewerQuality = useDebugStore((s) => s.viewerQuality)
@@ -108,6 +118,20 @@ export function SplatRenderer({
         <group position={[0, groundPlaneOffset, 0]} rotation={[flipY ? Math.PI : 0, 0, 0]} scale={metricScaleFactor}>
           <SplatMeshEl ref={splatRef} args={[splatArgs]} />
         </group>
+        {extras.map((e) => (
+          <group key={e.url} position={e.position} rotation={[e.flipY ? Math.PI : 0, 0, 0]} scale={e.scale}>
+            <ExtraSplatMesh url={e.url} />
+          </group>
+        ))}
       </SparkRendererEl>
     )
+}
+
+function ExtraSplatMesh({ url }: { url: string }) {
+  const args = useMemo(() => ({ url }), [url])
+  const ref = useRef<SplatMesh>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.raycast = ignoreRaycast
+  }, [])
+  return <SplatMeshEl ref={ref} args={[args]} />
 }

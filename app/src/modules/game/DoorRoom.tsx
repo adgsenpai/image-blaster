@@ -12,6 +12,16 @@ export const ROOM = { width: 5, depth: 6, height: 3, drop: 60 }
 
 export function roomFrame(frame: ArenaFrame) {
   const center = arenaPoint(frame, 0, 0, frame.origin.y - ROOM.drop)
+  if (frame.config.room) {
+    // Scanned interior: unrotated, origin = the photo camera on the floor.
+    const toWorld = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).add(center)
+    return {
+      center, yaw: 0, toWorld,
+      spawn: toWorld(0, 1.1, 0),
+      exit: toWorld(0, 1.1, 1.2),
+      facing: new THREE.Vector3(0, 0, -1),
+    }
+  }
   const yaw = Math.atan2(frame.forward.x, frame.forward.z)
   const toWorld = (x: number, y: number, z: number) =>
     new THREE.Vector3(x, y, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(center)
@@ -23,6 +33,7 @@ export function roomFrame(frame: ArenaFrame) {
     spawn: toWorld(0, 1.1, -ROOM.depth / 2 + 1.2),
     /** Exit door position (on the -z wall). */
     exit: toWorld(0, 1.1, -ROOM.depth / 2 + 0.2),
+    facing: new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)),
   }
 }
 

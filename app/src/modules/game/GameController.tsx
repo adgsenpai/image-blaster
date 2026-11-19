@@ -77,12 +77,25 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   const activeDoor = useRef<(typeof doors)[number] | null>(null)
   const shopSpots = useMemo(() => (frame.config.shop ?? []).map((sp) => ({ ...sp, world: room.toWorld(...sp.at) })), [frame, room])
   const activeShop = useRef<(typeof shopSpots)[number] | null>(null)
+  /** Weapon rack menu: F cycles, E buys. */
+  const RACK: ('ammo' | WeaponId)[] = ['pistol', 'shotgun', 'mg', 'sniper', 'ammo']
+  const rackIndex = useRef(0)
   const shopPrompt = (sp: (typeof shopSpots)[number]) => {
     const s = useGameStore.getState()
     const R = (n: number) => `R${n.toLocaleString('en-ZA')}`
     if (sp.kind === 'perk' && sp.id) {
       const p = PERKS[sp.id as PerkId]
       return s.perks.includes(sp.id as PerkId) ? `${p.name} · already drunk` : `E · ${p.name} (${p.blurb}) · ${R(p.price)}`
+    }
+    if (sp.kind === 'rack') {
+      const item = RACK[rackIndex.current]
+      const next = '   ·   F: next'
+      if (item === 'ammo') {
+        const d = WEAPONS[s.weapon]
+        return (d.mag ? `E · ammo for ${d.name} · ${R(d.ammoPrice)}` : 'ammo · hold a gun first') + next
+      }
+      const d = WEAPONS[item]
+      return (s.owned.includes(d.id) ? `E · ${d.name} ammo · ${R(d.ammoPrice)}` : `E · buy ${d.name} · ${R(d.price)}`) + next
     }
     if (sp.kind === 'ammo') {
       const d = WEAPONS[s.weapon]
@@ -103,14 +116,15 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         sfx.jingle(sp.id as PerkId)
         drinkT.current = 0
       }
-    } else if (sp.kind === 'ammo') {
+    } else if (sp.kind === 'ammo' || (sp.kind === 'rack' && RACK[rackIndex.current] === 'ammo')) {
       const before = s.money
       msg = s.buyAmmo()
       if (useGameStore.getState().money < before) sfx.buy()
     } else {
       const before = s.money
-      const id = (sp.id ?? 'pistol') as WeaponId
-      msg = s.buyWeapon(id)
+      const id = (sp.kind === 'rack' ? RACK[rackIndex.current] : sp.id ?? 'pistol') as WeaponId
+      if (s.owned.includes(id) && s.weapon !== id) s.setWeapon(id)
+      msg = s.owned.includes(id) ? useGameStore.getState().buyAmmo() : s.buyWeapon(id)
       if (useGameStore.getState().money < before) {
         sfx.buy()
         shownWeapon.current = useGameStore.getState().weapon
@@ -135,7 +149,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       if (body) {
         if (!st.indoors && activeDoor.current) {
           body.setTranslation({ x: room.spawn.x, y: room.spawn.y, z: room.spawn.z }, true)
-          yaw.current = yawToward(new THREE.Vector3(Math.sin(room.yaw), 0, Math.cos(room.yaw)))
+          yaw.current = yawToward(room.facing.clone())
           st.setIndoors(true)
         } else if (st.indoors && activeDoor.current) {
           const d = activeDoor.current
@@ -382,7 +396,10 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         if (s.phase === 'dead') s.start()
         else startReload()
       } else if (e.code === 'KeyG') throwGrenade()
-      else if (e.code === 'KeyE') {
+      else if (e.code === 'KeyF' && activeShop.current?.kind === 'rack') {
+        rackIndex.current = (rackIndex.current + 1) % RACK.length
+        sfx.casing()
+      } else if (e.code === 'KeyE') {
         if (!(useGameStore.getState().indoors && activeShop.current && tryShop())) doorTransition()
       }
       else if (e.code === 'KeyV') switchTo('knife')
@@ -488,6 +505,29 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       look: (yawDeg: number, pitchDeg = 0) => {
         yaw.current = frame.yaw + THREE.MathUtils.degToRad(yawDeg)
         pitch.current = THREE.MathUtils.degToRad(pitchDeg)
+      },
+      /** Crosshair ray vs physics world; returns hit in room-local coords (when indoors). */
+      pick: () => {
+        const d = new THREE.Vector3()
+        camera.getWorldDirection(d)
+        const hit = world.castRay(new rapier.Ray(camera.position, d), 40, true, undefined, undefined, undefined, bodyRef.current ?? undefined)
+        if (!hit) return null
+        const p = camera.position.clone().addScaledVector(d, hit.timeOfImpact).sub(room.center)
+        return p.toArray().map((n) => +n.toFixed(2))
+      },
+      roomGo: (x: number, z: number, yawDeg = 0, pitchDeg = 0) => {
+        const p = room.toWorld(x, 1.1, z)
+        bodyRef.current?.setTranslation({ x: p.x, y: p.y, z: p.z }, true)
+        yaw.current = THREE.MathUtils.degToRad(yawDeg)
+        pitch.current = THREE.MathUtils.degToRad(pitchDeg)
+        useGameStore.getState().setIndoors(true)
+      },
+      cash: (n: number) => useGameStore.getState().addMoney(n),
+      prompt: () => useGameStore.getState().prompt,
+      enterRoom: () => {
+        bodyRef.current?.setTranslation({ x: room.spawn.x, y: room.spawn.y, z: room.spawn.z }, true)
+        yaw.current = yawToward(room.facing.clone())
+        useGameStore.getState().setIndoors(true)
       },
       teleport: (u: number, v: number) => {
         const p = arenaPoint(frame, u, v, frame.origin.y + CHARACTER_HEIGHT / 2 + 0.3)

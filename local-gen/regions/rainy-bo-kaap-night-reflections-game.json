@@ -1,23 +1,124 @@
 {
   "arena": {
-    "origin": [0, 0, -1],
-    "forward": [0.336, 0, -0.942],
+    "origin": [
+      0,
+      0,
+      -1
+    ],
+    "forward": [
+      0.336,
+      0,
+      -0.942
+    ],
     "halfWidth": 4.0,
     "front": 9,
     "back": 0.5,
     "spawnPoints": [
-      { "at": [28.5, -18], "via": [28.5, -0.4] },
-      { "at": [28.5, 16], "via": [28.5, -0.4] },
-      { "at": [36, -0.4] },
-      { "at": [-5, -17], "via": [-5, -0.4] },
-      { "at": [-5, 15], "via": [-5, -0.4] },
-      { "at": [-22, -0.4] }
+      {
+        "at": [
+          28.5,
+          -18
+        ],
+        "via": [
+          28.5,
+          -0.4
+        ]
+      },
+      {
+        "at": [
+          28.5,
+          16
+        ],
+        "via": [
+          28.5,
+          -0.4
+        ]
+      },
+      {
+        "at": [
+          36,
+          -0.4
+        ]
+      },
+      {
+        "at": [
+          -5,
+          -17
+        ],
+        "via": [
+          -5,
+          -0.4
+        ]
+      },
+      {
+        "at": [
+          -5,
+          15
+        ],
+        "via": [
+          -5,
+          -0.4
+        ]
+      },
+      {
+        "at": [
+          -22,
+          -0.4
+        ]
+      }
     ],
     "doors": [
-      { "u": 4.5, "v": -4.8, "label": "#97" },
-      { "u": 7.2, "v": -4.8 },
-      { "u": 2.4, "v": 4.0 },
-      { "u": 7.6, "v": 4.0 }
+      {
+        "u": 4.5,
+        "v": -4.8,
+        "label": "#97"
+      },
+      {
+        "u": 7.2,
+        "v": -4.8
+      },
+      {
+        "u": 2.4,
+        "v": 4.0
+      },
+      {
+        "u": 7.6,
+        "v": 4.0
+      }
+    ],
+    "room": {
+      "splat": "/worlds/survivor-trader-room/output/world/0-world-500k.spz",
+      "collider": "/worlds/survivor-trader-room/output/world/0-world.glb",
+      "metricScale": 0.94663286,
+      "groundOffset": 1.4050561
+    },
+    "shop": [
+      {
+        "kind": "perk",
+        "id": "rooibos",
+        "at": [
+          -1.4,
+          1,
+          -5.0
+        ]
+      },
+      {
+        "kind": "rack",
+        "at": [
+          0.5,
+          1,
+          -5.4
+        ]
+      },
+      {
+        "kind": "perk",
+        "id": "tonic",
+        "at": [
+          2.5,
+          1,
+          -9.5
+        ]
+      }
     ],
     "fogWalls": false,
     "wallHeight": 45,
@@ -30,15 +131,51 @@
     "mistHeight": 3
   },
   "stage": {
-    "clip": { "uMin": -1.0, "uMax": 24.5, "vMin": -14, "vMax": 13, "yMax": 12 },
-    "street": { "left": -4.8, "right": 4.0, "roadLeft": -2.9, "roadRight": 2.2, "curb": 0.14 },
+    "clip": {
+      "uMin": -1.0,
+      "uMax": 24.5,
+      "vMin": -14,
+      "vMax": 13,
+      "yMax": 12
+    },
+    "street": {
+      "left": -4.8,
+      "right": 4.0,
+      "roadLeft": -2.9,
+      "roadRight": 2.2,
+      "curb": 0.14
+    },
     "crossStreets": [
-      { "u": 28.5, "width": 8 },
-      { "u": -5, "width": 7 }
+      {
+        "u": 28.5,
+        "width": 8
+      },
+      {
+        "u": -5,
+        "width": 7
+      }
     ],
-    "extent": { "front": 140, "back": 80, "side": 80 },
-    "fog": { "color": "#655d63", "density": 0.011 },
-    "palette": ["#d8457a", "#e3657f", "#8cc63f", "#f2c230", "#8e9be0", "#f08a3c", "#4fb8b0", "#b58ad6", "#5fa8e0", "#e8dcc4"],
+    "extent": {
+      "front": 140,
+      "back": 80,
+      "side": 80
+    },
+    "fog": {
+      "color": "#655d63",
+      "density": 0.011
+    },
+    "palette": [
+      "#d8457a",
+      "#e3657f",
+      "#8cc63f",
+      "#f2c230",
+      "#8e9be0",
+      "#f08a3c",
+      "#4fb8b0",
+      "#b58ad6",
+      "#5fa8e0",
+      "#e8dcc4"
+    ],
     "seed": 2026,
     "rain": false,
     "splat": "output/stage/1-world-clipped.spz",

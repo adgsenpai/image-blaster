@@ -2,6 +2,7 @@ import { Component, Suspense, useRef, useEffect, useState, type ReactNode } from
 import { Tooltip } from '@radix-ui/themes'
 import { ArrowsClockwiseIcon, CaretDownIcon, CaretUpIcon } from '@phosphor-icons/react'
 import { Canvas } from '@react-three/fiber'
+import * as THREE from 'three'
 import { Physics } from '@react-three/rapier'
 import { SplatRenderer } from '../modules/splat/SplatRenderer'
 import { EnvironmentMap } from '../modules/environment/EnvironmentMap'
@@ -26,6 +27,7 @@ import { Zombies } from '../modules/game/Zombies'
 import { Grenades } from '../modules/game/Grenades'
 import { Gore } from '../modules/game/Gore'
 import { DoorRoom } from '../modules/game/DoorRoom'
+import { RoomBarricade } from '../modules/game/RoomBarricade'
 import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
@@ -196,6 +198,11 @@ export function WorldViewer({
 
   const stageSplat = gameConfig?.stage?.splat && !editing ? `/worlds/${desiredSlug}/${gameConfig.stage.splat}` : ''
   const splatUrl = stageSplat || (desiredWorld ? getSplatUrl(desiredWorld) : '')
+  const roomCfg = gameConfig?.arena.room
+  const roomCenter = gameConfig ? new THREE.Vector3(...gameConfig.arena.origin).add(new THREE.Vector3(0, -60, 0)) : null
+  const extraSplats = gameOn && roomCfg && roomCenter
+    ? [{ url: roomCfg.splat, position: [roomCenter.x, roomCenter.y + roomCfg.groundOffset, roomCenter.z] as [number, number, number], flipY: true, scale: roomCfg.metricScale }]
+    : []
   const { ground_plane_offset, flip_y, metric_scale_factor } = desiredWorld?.assets.splats.semantics_metadata ?? DEFAULT_WORLD_SEMANTICS
   const flipY = flip_y ?? true
   const baseMetricScaleFactor = metric_scale_factor ?? 1
@@ -297,7 +304,17 @@ export function WorldViewer({
             {gameOn && gameConfig && <Zombies arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Grenades arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Gore />}
-            {gameOn && gameConfig && (gameConfig.arena.doors?.length ?? 0) > 0 && <DoorRoom arena={gameConfig.arena} />}
+            {gameOn && gameConfig && (gameConfig.arena.doors?.length ?? 0) > 0 && !roomCfg && <DoorRoom arena={gameConfig.arena} />}
+            {gameOn && roomCfg && gameConfig && <RoomBarricade arena={gameConfig.arena} />}
+            {gameOn && roomCfg?.collider && roomCenter && (
+              <OptionalAssetBoundary label={roomCfg.collider} resetKey={roomCfg.collider}>
+                <Suspense fallback={null}>
+                  <group position={roomCenter}>
+                    <WorldCollider url={roomCfg.collider} flipY groundPlaneOffset={roomCfg.groundOffset} metricScaleFactor={roomCfg.metricScale} />
+                  </group>
+                </Suspense>
+              </OptionalAssetBoundary>
+            )}
             {showObjects && !editing && !gameOn && (
               <Suspense fallback={null}>
                 <ObjectGrid
@@ -334,6 +351,7 @@ export function WorldViewer({
                 groundPlaneOffset={activeGroundPlaneOffset}
                 flipY={flipY}
                 metricScaleFactor={activeMetricScaleFactor}
+                extras={extraSplats}
               />
             </OptionalAssetBoundary>
           )}
