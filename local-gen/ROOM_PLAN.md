@@ -14,13 +14,13 @@ the config lives in `local-gen/regions/rainy-bo-kaap-night-reflections-game.json
 
 ## Backlog
 
-- [ ] 1. **Measure the real walls.** Extend `room_find.py` to print the front-most wall depth (z) per x slice at
+- [x] 1. **Measure the real walls.** Extend `room_find.py` to print the front-most wall depth (z) per x slice at
       several heights (0.3, 1.2, 2.5 m), plus the floor/ceiling heights, from the splats (alpha > 0.5).
       Use it to place the SURVIVOR TRADER sign, the price board and both machines flush against walls (no floating).
-- [ ] 2. **Clean remnants.** Enlarge the clip boxes around both machines (the grey "smoke" remnants), and clip
+- [x] 2. **Clean remnants.** Enlarge the clip boxes around both machines (the grey "smoke" remnants), and clip
       everything behind the photo camera (z > 0.4), since that side is invented by World Labs (fake arched windows).
       Re-run `clip_room.py`.
-- [ ] 3. **Proper back wall + EXIT door.** In RoomProps add a built back wall at z ≈ 0.6 spanning the room width:
+- [x] 3. **Proper back wall + EXIT door.** In RoomProps add a built back wall at z ≈ 0.6 spanning the room width:
       wood wainscot + plaster texture matching the room's red/brown palette, a real double door with a lit green
       EXIT sign above it and a wall lamp, and boarded windows either side. Move the exit hotspot to that door. Drop the old
       RoomBarricade if it's redundant.

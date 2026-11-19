@@ -15,11 +15,13 @@ export function roomFrame(frame: ArenaFrame) {
   if (frame.config.room) {
     // Scanned interior: unrotated, origin = the photo camera on the floor.
     const toWorld = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).add(center)
+    const r = frame.config.room
+    const fy = r.facingYaw ?? Math.PI
     return {
       center, yaw: 0, toWorld,
-      spawn: toWorld(0, 1.1, 0),
-      exit: toWorld(0, 1.1, 1.2),
-      facing: new THREE.Vector3(0, 0, -1),
+      spawn: toWorld(r.spawn?.[0] ?? 0, 1.1, r.spawn?.[1] ?? 0),
+      exit: toWorld(r.exit?.[0] ?? 0, 1.1, r.exit?.[1] ?? 1.2),
+      facing: new THREE.Vector3(Math.sin(fy), 0, Math.cos(fy)),
     }
   }
   const yaw = Math.atan2(frame.forward.x, frame.forward.z)

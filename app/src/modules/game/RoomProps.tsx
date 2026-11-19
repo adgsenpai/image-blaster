@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { arenaFrame, type ArenaConfig } from './arena'
 import { roomFrame } from './DoorRoom'
 import { PERKS, WEAPONS, type PerkId } from './weapons'
+import { buildBackWall, type BackWallConfig } from './RoomBackWall'
 
 /**
  * Crisp replacements for scanned props that splats can't hold up close: perk vending
@@ -14,7 +15,8 @@ export interface RoomPropsConfig {
   machines?: { perk: PerkId; at: [number, number, number]; rotY?: number }[]
   sign?: { at: [number, number, number]; size: [number, number]; rotY?: number }
   board?: { at: [number, number, number]; size: [number, number]; rotY?: number }
-  arch?: { x0: number; x1: number; z: number; height: number }
+  arch?: { at: [number, number, number]; width: number; height: number; rotY: number }
+  backWall?: BackWallConfig
 }
 
 function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void) {
@@ -207,28 +209,36 @@ export function RoomProps({ arena, props }: { arena: ArenaConfig; props: RoomPro
       g.add(board)
     }
     if (props.arch) {
-      const { x0, x1, z, height } = props.arch
-      const w = x1 - x0
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(w, height), new THREE.MeshStandardMaterial({ map: archTexture(1024, Math.round((1024 * height) / w)), roughness: 1 }))
-      back.position.set((x0 + x1) / 2, height / 2, z)
-      g.add(back)
+      // Local frame: opening centred on x = 0, floor at y = 0, room side is +z.
+      const { at, width: w, height, rotY } = props.arch
+      const arch = new THREE.Group()
+      arch.position.set(...at)
+      arch.rotation.y = rotY
+      let seed = 7
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.6, height), new THREE.MeshStandardMaterial({ map: archTexture(1024, Math.round((1024 * height) / (w + 0.6))), roughness: 1 }))
+      back.position.set(0, height / 2, -0.25)
+      arch.add(back)
       const wood = ['#5a3d26', '#6b4a2e', '#4a3220', '#7a5634'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }))
-      for (let i = 0; i < 11; i++) {
-        const plank = new THREE.Mesh(new THREE.BoxGeometry(w * (0.55 + Math.random() * 0.5), 0.2, 0.05), wood[i % 4])
-        plank.position.set(x0 + w * (0.25 + Math.random() * 0.5), 0.3 + Math.random() * (height - 0.6), z + 0.06)
-        plank.rotation.z = (Math.random() - 0.5) * 1.1
-        g.add(plank)
+      for (let i = 0; i < 9; i++) {
+        const plank = new THREE.Mesh(new THREE.BoxGeometry(w * 0.98, 0.18, 0.045), wood[i % 4])
+        plank.position.set((rnd() - 0.5) * 0.15, 0.55 + (i / 8) * (height - 1.0), 0.02 + i * 0.004)
+        plank.rotation.z = (rnd() - 0.5) * 0.5
+        arch.add(plank)
       }
       const sack = new THREE.MeshStandardMaterial({ color: '#8b7a5a', roughness: 1 })
+      const n = Math.floor(w / 0.55)
       for (let row = 0; row < 3; row++) {
-        for (let k = 0; k < Math.floor(w / 0.55); k++) {
+        for (let k = 0; k < n - (row % 2); k++) {
           const bag = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.36, 4, 8), sack)
           bag.rotation.z = Math.PI / 2
-          bag.position.set(x0 + 0.3 + k * 0.55 + (row % 2) * 0.27, 0.16 + row * 0.28, z + 0.35)
-          g.add(bag)
+          bag.position.set(-((n - 1) * 0.55) / 2 + k * 0.55 + (row % 2) * 0.27, 0.16 + row * 0.28, 0.32)
+          arch.add(bag)
         }
       }
+      g.add(arch)
     }
+    if (props.backWall) g.add(buildBackWall(props.backWall))
     g.traverse((o) => {
       o.raycast = () => {}
     })
@@ -240,11 +250,19 @@ export function RoomProps({ arena, props }: { arena: ArenaConfig; props: RoomPro
       <primitive object={built} />
       <RigidBody type="fixed" colliders={false} userData={{ noDecal: true }}>
         {(props.machines ?? []).map((m, i) => (
-          <CuboidCollider key={i} args={[0.43, 1, 0.36]} position={[m.at[0], 1, m.at[2]]} />
+          <CuboidCollider key={i} args={[0.43, 1, 0.36]} position={[m.at[0], m.at[1] + 1, m.at[2]]} rotation={[0, m.rotY ?? 0, 0]} />
         ))}
         {props.arch && (
-          <CuboidCollider args={[(props.arch.x1 - props.arch.x0) / 2, props.arch.height / 2, 0.3]}
-            position={[(props.arch.x0 + props.arch.x1) / 2, props.arch.height / 2, props.arch.z + 0.2]} />
+          <CuboidCollider args={[props.arch.width / 2 + 0.3, props.arch.height / 2, 0.35]} rotation={[0, props.arch.rotY, 0]}
+            position={[props.arch.at[0], props.arch.at[1] + props.arch.height / 2, props.arch.at[2]]} />
+        )}
+        {props.backWall && (
+          <CuboidCollider args={[props.backWall.width / 2, props.backWall.height / 2, 0.15]} rotation={[0, props.backWall.rotY, 0]}
+            position={[
+              props.backWall.at[0] - Math.sin(props.backWall.rotY) * 0.1,
+              props.backWall.at[1] + props.backWall.height / 2,
+              props.backWall.at[2] - Math.cos(props.backWall.rotY) * 0.1,
+            ]} />
         )}
       </RigidBody>
     </group>
