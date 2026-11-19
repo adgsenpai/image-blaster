@@ -188,6 +188,29 @@ lighting is warm sodium to match the light baked into the scan. Lamp posts and b
 single-image 3D breaks on thin structures. The play area stays at the photo spot, and zombies walk in from the
 surrounding city.
 
+## Night polish: real zombies, gore, guns, doors
+
+**Performance note:** this needs the discrete GPU. On the RTX 5060 the stage ran at about 49 fps, but when Chrome falls back to
+the integrated Intel GPU (`chrome://gpu` shows "Mesa Intel") it drops to about 4 fps. On Linux with NVIDIA PRIME, launch Chrome with
+`__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia google-chrome`, or set the GPU preference in your desktop's settings.
+
+
+| headshot: head pops, blood pools | through a door into a room |
+|---|---|
+| ![gore](../docs/showcase/11-gore-headshot.jpg) | ![room](../docs/showcase/12-door-room.jpg) |
+
+- **Zombies:** a CC0 Quaternius rigged zombie with walk, run, punch, hit-react, death and crawl animations
+  (`app/src/modules/game/zombieModel.ts`). Hitboxes follow the animated head bone.
+- **Gore:** headshot kills collapse the head bone and launch a head gib, with a fountain of blood from the neck.
+  Leg hits sever a leg and the zombie crawls (RE2 style), arm hits take arms off, and grenades tear limbs off.
+  There are pooled blood sprays, plus blood pools and splats that fade (`Gore.tsx`).
+- **Deaths:** the death clip plays and the body slides back along the shot.
+- **Impacts:** bullet holes and dust on the scanned facades and street, using the analytic street geometry.
+- **Guns:** CC0 Quaternius pistol, assault rifle and sniper models are fitted to the viewmodel rig. Gunshots and reloads
+  are real recordings; credits and licences are in `app/public/game/CREDITS.txt`.
+- **Doors:** E at a door fades into a placeholder room and E takes you back out. Zombies pause while you're inside.
+  Doors are configured in `game.json` → `arena.doors`.
+
 ## Credits
 
 - **IMAGE-BLASTER** by [Neilson Koerner-Safrata](https://github.com/neilsonnn) ([neilsonnn/image-blaster](https://github.com/neilsonnn/image-blaster)), MIT.
@@ -197,3 +220,5 @@ surrounding city.
 - [Stable Fast 3D](https://huggingface.co/stabilityai/stable-fast-3d) (Stability AI, Stability AI Community License)
 - [BiRefNet](https://github.com/ZhengPeng7/BiRefNet), run through [rembg](https://github.com/danielgatis/rembg)
 - [World Labs Marble](https://www.worldlabs.ai/) for the explorable worlds
+- Zombie and gun models: [Quaternius](https://quaternius.com/) (CC0) via [poly.pizza](https://poly.pizza)
+- Gunshot recordings: Vincent Sevedge, "Gunshot sounds" (CC-BY 3.0), [OpenGameArt](https://opengameart.org/content/gunshot-sounds); reloads from "Gun reload sounds" (CC0)

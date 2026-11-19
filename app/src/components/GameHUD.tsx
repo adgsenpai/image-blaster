@@ -227,6 +227,7 @@ function Controls() {
       <span>1 2 3 4 / wheel</span><span>pistol · mg · sniper · knife</span>
       <span>V</span><span>knife</span>
       <span>G</span><span>throw grenade</span>
+      <span>E</span><span>open door / leave</span>
       <span>R</span><span>reload</span>
       <span>shift</span><span>sprint</span>
       <span>space</span><span>jump</span>

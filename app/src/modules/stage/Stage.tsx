@@ -522,7 +522,7 @@ function PropSet({ url, frame, items, height, extra }: {
   return <primitive object={group} />
 }
 
-const MAX_LAMP_LIGHTS = 20
+const MAX_LAMP_LIGHTS = 8
 
 function Lamps({ frame, items }: { frame: ArenaFrame; items: StageLayout['props'] }) {
   const group = useMemo(() => {

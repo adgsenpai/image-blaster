@@ -26,7 +26,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 - [x] 8. **Doors**: E near a scan door (start with the pink #97 door, left side, u≈1.5, v≈-4.8) fades to black and
       teleports you into a simple cube room (walls, floor, ceiling light, colliders). E at its door returns you to the street.
       Zombies pause while you're inside.
-- [ ] 9. **Polish**: performance pass, HUD tidy, README showcase screenshots, update `docs/showcase`.
+- [x] 9. **Polish** (lights capped at 8, DPR capped at 1.25, README showcase + credits; perf needs Chrome on the NVIDIA GPU): performance pass, HUD tidy, README showcase screenshots, update `docs/showcase`.
 
 ## Rules
 - Only CC0 / public-domain downloads; record the source in `app/public/game/CREDITS.txt`.

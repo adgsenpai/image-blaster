@@ -257,6 +257,7 @@ export function WorldViewer({
     <>
       <Canvas
         camera={{ fov: 75, near: 0.1, far: 1000 }}
+        dpr={[1, 1.25]}
         className="w-full h-full"
         gl={{ antialias: false }}
         shadows={isHighQuality}
