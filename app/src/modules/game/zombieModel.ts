@@ -77,8 +77,37 @@ export function createModelZombie(t: Template, id: number): ModelZombie {
       mesh.raycast = () => {}
       const m = (mesh.material as THREE.MeshStandardMaterial).clone()
       m.emissive = new THREE.Color(0, 0, 0)
-      // Slightly sicker skin tone per zombie.
-      m.color.offsetHSL((Math.random() - 0.5) * 0.04, -0.05, -0.05 - Math.random() * 0.08)
+      // Grittier than the cartoon atlas: desaturate, darken, grime + blood blotches.
+      m.roughness = 0.95
+      m.metalness = 0
+      const seed = Math.random() * 100
+      m.onBeforeCompile = (shader) => {
+        shader.uniforms.uSeed = { value: seed }
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vObjPos;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvObjPos = position;')
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', `#include <common>
+            varying vec3 vObjPos;
+            uniform float uSeed;
+            float gHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164)) + uSeed) * 43758.5453); }
+            float gNoise(vec3 p) {
+              vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+              return mix(mix(mix(gHash(i), gHash(i + vec3(1,0,0)), f.x), mix(gHash(i + vec3(0,1,0)), gHash(i + vec3(1,1,0)), f.x), f.y),
+                         mix(mix(gHash(i + vec3(0,0,1)), gHash(i + vec3(1,0,1)), f.x), mix(gHash(i + vec3(0,1,1)), gHash(i + vec3(1,1,1)), f.x), f.y), f.z);
+            }`)
+          .replace('#include <map_fragment>', `#include <map_fragment>
+            {
+              float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(lum) * vec3(0.92, 0.95, 0.85), 0.55) * 0.62;
+              vec3 q = vObjPos * 900.0;
+              float grime = gNoise(q * 0.9) * 0.6 + gNoise(q * 2.3) * 0.4;
+              diffuseColor.rgb *= mix(0.55, 1.0, smoothstep(0.25, 0.7, grime));
+              float blood = smoothstep(0.62, 0.8, gNoise(q * 0.6 + 7.0));
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.22, 0.015, 0.02), blood * 0.85);
+            }`)
+      }
+      m.customProgramCacheKey = () => 'zombie-grit'
       mesh.material = m
       mats.push(m)
     }

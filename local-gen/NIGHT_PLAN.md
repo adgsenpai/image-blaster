@@ -35,7 +35,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 
 ## Extra polish (for later runs, in order)
 
-- [ ] 10. **Grittier zombies**: desaturate and darken the Quaternius atlas per zombie, add grime/blood tint to the
+- [x] 10. **Grittier zombies**: desaturate and darken the Quaternius atlas per zombie, add grime/blood tint to the
       material (onBeforeCompile or vertex colour), so they read less cartoony at night.
 - [ ] 11. **Zombie voices**: find CC0 zombie groan/attack/death recordings (OpenGameArt, check each licence) and play them
       positionally (PannerNode at the zombie position), keeping the synth as fallback.
