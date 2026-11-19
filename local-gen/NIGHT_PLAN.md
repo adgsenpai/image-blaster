@@ -21,7 +21,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
 - [x] 4. **Ragdoll-ish deaths**: play the Death clip, add knockback along the shot and settle on the ground. Simple physics bodies for gibs.
 - [x] 5. **Bullet impacts**: rapier `castRayAndGetNormal` against the world collider gives a bullet-hole decal
       (oriented to the normal, capped at 80, oldest removed) plus a dust/spark puff.
-- [ ] 6. **Gun models**: CC0 guns (Quaternius on poly.pizza; check that the page says CC0) for the pistol, rifle and sniper viewmodels.
+- [x] 6. **Gun models**: CC0 guns (Quaternius on poly.pizza; check that the page says CC0) for the pistol, rifle and sniper viewmodels.
 - [ ] 7. **Gun and zombie sounds**: CC0 OpenGameArt packs ("Gunshot sounds", "Gun reload sounds"), with the synth as fallback.
 - [ ] 8. **Doors**: E near a scan door (start with the pink #97 door, left side, u≈1.5, v≈-4.8) fades to black and
       teleports you into a simple cube room (walls, floor, ceiling light, colliders). E at its door returns you to the street.

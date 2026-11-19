@@ -1,2 +1,5 @@
 zombie.glb: "Zombie" by Quaternius, CC0 1.0, https://poly.pizza/m/VlXjG0N8Eg
 zombie-small.glb: "Zombie" by Quaternius, CC0 1.0, https://poly.pizza/m/JoBvxIUpZP
+guns/pistol.glb: "Pistol" by Quaternius, CC0 1.0, https://poly.pizza/m/1vBdqOfUNd
+guns/rifle.glb: "Assault Rifle" by Quaternius, CC0 1.0, https://poly.pizza/m/Bgvuu4CUMV
+guns/sniper.glb: "Sniper Rifle" by Quaternius, CC0 1.0, https://poly.pizza/m/ASOMZIErq3

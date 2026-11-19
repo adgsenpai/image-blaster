@@ -9,6 +9,7 @@ import { arenaFrame, arenaLocal, arenaPoint, type ArenaConfig } from './arena'
 import { gameRuntime, goreApi, grenadeApi, zombieApi } from './runtime'
 import { sfx } from './sfx'
 import { WEAPONS, WEAPON_ORDER, buildViewmodel, type WeaponId } from './weapons'
+import { upgradeViewmodel } from './gunModels'
 
 const WALK_SPEED = 4
 const SPRINT_MULT = 1.6
@@ -76,6 +77,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       const root = new THREE.Group()
       const model = buildViewmodel(id)
       root.add(model)
+      void upgradeViewmodel(id, root, model)
       const f = makeFlash()
       f.position.set(...WEAPONS[id].muzzle)
       f.position.z -= 0.02
