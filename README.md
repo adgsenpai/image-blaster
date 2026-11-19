@@ -10,7 +10,7 @@
 
 | walk the world (Table Mountain backdrop) | play it: BO-KAAP: LAST NIGHT |
 |---|---|
-| ![backdrop](docs/showcase/08-table-mountain-backdrop.jpg) | ![zombies](docs/showcase/07-zombie-fps.jpg) |
+| ![backdrop](docs/showcase/08-table-mountain-backdrop.jpg) | ![zombies](docs/showcase/13-horde.jpg) |
 
 See **[local-gen/README.md](local-gen/README.md)** for the full breakdown of what I changed and why.
 
