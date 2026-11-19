@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from '../../store/game'
 import { goreApi } from './runtime'
+import { sfx } from './sfx'
 
 const MAX_PARTICLES = 2400
 const MAX_POOLS = 70
@@ -73,6 +74,22 @@ function holeTexture() {
   return t
 }
 interface Gib { obj: THREE.Object3D; vel: THREE.Vector3; spin: THREE.Vector3; age: number; bleed: number }
+interface Casing { mesh: THREE.Mesh; vel: THREE.Vector3; spin: THREE.Vector3; age: number; bounced: boolean }
+interface Puff { sprite: THREE.Sprite; vel: THREE.Vector3; age: number }
+const MAX_CASINGS = 40
+const MAX_PUFFS = 30
+
+function smokeTexture() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(200,200,200,0.55)')
+  g.addColorStop(1, 'rgba(200,200,200,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  return new THREE.CanvasTexture(c)
+}
 
 export function Gore() {
   const group = useRef<THREE.Group>(null)
@@ -93,6 +110,13 @@ export function Gore() {
     map: bloodTexture(s * 7919), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, fog: true,
   })), [])
   const pools = useRef<Pool[]>([])
+  const casings = useRef<Casing[]>([])
+  const puffs = useRef<Puff[]>([])
+  const brass = useMemo(() => ({
+    geo: new THREE.CylinderGeometry(0.0055, 0.0055, 0.022, 8),
+    mat: new THREE.MeshStandardMaterial({ color: '#c8a24a', metalness: 0.9, roughness: 0.3 }),
+    smoke: smokeTexture(),
+  }), [])
   const holes = useRef<THREE.Mesh[]>([])
   const holeMat = useMemo(() => new THREE.MeshBasicMaterial({
     map: holeTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, fog: true,
@@ -114,6 +138,10 @@ export function Gore() {
     for (const g of gibs.current) g.obj.removeFromParent()
     for (const h of holes.current) h.removeFromParent()
     holes.current = []
+    for (const c of casings.current) c.mesh.removeFromParent()
+    casings.current = []
+    for (const p of puffs.current) p.sprite.removeFromParent()
+    puffs.current = []
     pools.current = []
     gibs.current = []
     particles.life.fill(0)
@@ -213,14 +241,36 @@ export function Gore() {
     goreApi.pool = pool
     goreApi.gib = gib
     goreApi.impact = impact
+    goreApi.casing = (point, velocity) => {
+      if (!group.current) return
+      if (casings.current.length >= MAX_CASINGS) casings.current.shift()?.mesh.removeFromParent()
+      const mesh = new THREE.Mesh(brass.geo, brass.mat)
+      mesh.position.copy(point)
+      mesh.raycast = () => {}
+      group.current.add(mesh)
+      casings.current.push({ mesh, vel: velocity.clone(), age: 0, bounced: false,
+        spin: new THREE.Vector3(Math.random() * 30, Math.random() * 30, Math.random() * 30) })
+    }
+    goreApi.smoke = (point) => {
+      if (!group.current) return
+      if (puffs.current.length >= MAX_PUFFS) puffs.current.shift()?.sprite.removeFromParent()
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: brass.smoke, transparent: true, depthWrite: false, opacity: 0.5 }))
+      sprite.position.copy(point)
+      sprite.scale.setScalar(0.08)
+      sprite.raycast = () => {}
+      group.current.add(sprite)
+      puffs.current.push({ sprite, vel: new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.35 + Math.random() * 0.2, (Math.random() - 0.5) * 0.2), age: 0 })
+    }
     return () => {
       goreApi.spray = null
       goreApi.pool = null
       goreApi.gib = null
       goreApi.impact = null
+      goreApi.casing = null
+      goreApi.smoke = null
       clear()
     }
-  }, [particles, splats, holeMat, dust]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [particles, splats, holeMat, dust, brass]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const _d = useMemo(() => new THREE.Vector3(0, 1, 0), [])
   useFrame((_s, raw) => {
@@ -302,6 +352,56 @@ export function Gore() {
         }
       }
     }
+    for (const c of casings.current) {
+      c.age += dt
+      const m = c.mesh
+      if (m.position.y > floor + 0.006 || c.vel.y > 0) {
+        c.vel.y += GRAVITY * dt
+        m.position.addScaledVector(c.vel, dt)
+        m.rotation.x += c.spin.x * dt
+        m.rotation.y += c.spin.y * dt
+        m.rotation.z += c.spin.z * dt
+      }
+      if (m.position.y < floor + 0.006) {
+        m.position.y = floor + 0.006
+        if (!c.bounced) {
+          c.bounced = true
+          sfx.casing()
+        }
+        if (Math.abs(c.vel.y) > 0.6) {
+          c.vel.y = -c.vel.y * 0.4
+          c.vel.x *= 0.5
+          c.vel.z *= 0.5
+          c.spin.multiplyScalar(0.5)
+        } else {
+          c.vel.set(0, 0, 0)
+          c.spin.set(0, 0, 0)
+          m.rotation.set(Math.PI / 2, m.rotation.y, 0)
+        }
+      }
+    }
+    casings.current = casings.current.filter((c) => {
+      if (c.age > 30) {
+        c.mesh.removeFromParent()
+        return false
+      }
+      return true
+    })
+    for (const p of puffs.current) {
+      p.age += dt
+      p.sprite.position.addScaledVector(p.vel, dt)
+      p.sprite.scale.setScalar(0.08 + p.age * 0.5)
+      ;(p.sprite.material as THREE.SpriteMaterial).opacity = Math.max(0, 0.5 * (1 - p.age / 1.2))
+    }
+    puffs.current = puffs.current.filter((p) => {
+      if (p.age > 1.2) {
+        p.sprite.removeFromParent()
+        p.sprite.material.dispose()
+        return false
+      }
+      return true
+    })
+
     gibs.current = gibs.current.filter((g) => {
       if (g.age > 25) {
         g.obj.removeFromParent()

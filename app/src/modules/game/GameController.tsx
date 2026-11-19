@@ -214,6 +214,12 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       if (def.auto) yaw.current += (Math.random() - 0.5) * kick * 0.8
       gameRuntime.shake = Math.max(gameRuntime.shake, def.id === 'sniper' ? 0.6 : 0.15)
       sfx.shot(def.id)
+      // Brass out to the right, smoke at the muzzle.
+      const vmRoot = rig.models[s.weapon].root
+      const eject = camera.localToWorld(vmRoot.position.clone().add(new THREE.Vector3(0.03, 0.03, 0)))
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+      goreApi.casing?.(eject, right.multiplyScalar(1.6 + Math.random() * 0.8).add(new THREE.Vector3(0, 1.8 + Math.random(), 0)))
+      goreApi.smoke?.(camera.localToWorld(vmRoot.position.clone().add(new THREE.Vector3(...def.muzzle))))
       if (ammo - 1 === 0) setTimeout(startReload, 120)
     } else {
       swing.current = 1

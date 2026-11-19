@@ -37,6 +37,9 @@ export const goreApi = {
   gib: null as ((kind: 'head' | 'arm' | 'leg', point: THREE.Vector3, velocity: THREE.Vector3, skin: THREE.Color) => void) | null,
   /** Bullet hole + dust puff on a wall / the street. */
   impact: null as ((point: THREE.Vector3, normal: THREE.Vector3) => void) | null,
+  /** Ejected brass casing and muzzle smoke. */
+  casing: null as ((point: THREE.Vector3, velocity: THREE.Vector3) => void) | null,
+  smoke: null as ((point: THREE.Vector3) => void) | null,
   /** Ground height for effects. */
   floorY: 0,
 }

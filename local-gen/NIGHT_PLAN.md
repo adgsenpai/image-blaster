@@ -39,7 +39,7 @@ Dev hook: `window.__fps.teleport(u, v)` / `window.__fps.look(yawDeg, pitchDeg)`.
       material (onBeforeCompile or vertex colour), so they read less cartoony at night.
 - [x] 11. **Zombie voices**: find CC0 zombie groan/attack/death recordings (OpenGameArt, check each licence) and play them
       positionally (PannerNode at the zombie position), keeping the synth as fallback.
-- [ ] 12. **Muzzle smoke + shell casings**: a short-lived smoke puff at the muzzle and ejected brass casings that bounce on the street.
+- [x] 12. **Muzzle smoke + shell casings**: a short-lived smoke puff at the muzzle and ejected brass casings that bounce on the street.
 - [ ] 13. **More doors**: add 2 to 3 more scan doors to `arena.doors` (walk the street with `window.__fps` and screenshot to place them).
 - [ ] 14. **Hit feedback**: hitmarker sound, slight camera kick on damage, and a low-health heartbeat.
 - [ ] 15. **Morning summary**: refresh README screenshots (gameplay with zombies + gore), then post a short summary.
