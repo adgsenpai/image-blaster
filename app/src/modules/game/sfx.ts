@@ -181,6 +181,17 @@ export const sfx = {
     tone(ac, 'triangle', 180, 90, 0.4, 0.12)
     tone(ac, 'square', 1200, 900, 0.05, 0.05, 0.05)
   },
+  hitmarker() {
+    const ac = audio()
+    if (!ac) return
+    tone(ac, 'square', 2400, 2200, 0.03, 0.05)
+  },
+  heartbeat() {
+    const ac = audio()
+    if (!ac) return
+    tone(ac, 'sine', 70, 45, 0.16, 0.5)
+    tone(ac, 'sine', 62, 40, 0.14, 0.35, 0.22)
+  },
   casing() {
     const ac = audio()
     if (!ac) return

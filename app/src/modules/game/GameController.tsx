@@ -286,6 +286,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     if (landed) {
       s.markHit(headshotLanded)
       sfx.hit(headshotLanded)
+      sfx.hitmarker()
     }
   }
 
@@ -430,6 +431,16 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     }
   }, [frame])
 
+  // Taking damage jolts the camera.
+  useEffect(() => useGameStore.subscribe((st, prev) => {
+    if (st.hurtToken !== prev.hurtToken) {
+      gameRuntime.shake = Math.max(gameRuntime.shake, 0.55)
+      pitch.current = Math.min(Math.PI / 2.2, pitch.current + 0.035)
+      yaw.current += (Math.random() - 0.5) * 0.05
+    }
+  }), [])
+  const heartbeat = useRef(0)
+
   // Release the mouse when the player dies so the HUD buttons are clickable.
   const phase = useGameStore((s) => s.phase)
   useEffect(() => {
@@ -445,6 +456,14 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     const def = WEAPONS[s.weapon]
 
     cooldown.current = Math.max(0, cooldown.current - delta)
+    // Heartbeat when badly hurt, faster the closer to death.
+    if (active && s.health <= 30) {
+      heartbeat.current -= delta
+      if (heartbeat.current <= 0) {
+        sfx.heartbeat()
+        heartbeat.current = 0.55 + (s.health / 30) * 0.5
+      }
+    }
     grenadeCooldown.current = Math.max(0, grenadeCooldown.current - delta)
     switchLeft.current = Math.max(0, switchLeft.current - delta)
     if (reloadLeft.current > 0) {
