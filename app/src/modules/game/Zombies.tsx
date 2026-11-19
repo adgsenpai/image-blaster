@@ -335,6 +335,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
     const delta = Math.min(rawDelta, 0.05)
     const s = useGameStore.getState()
     if (s.phase !== 'playing' && s.phase !== 'dead') return
+    if (s.indoors) return // the street holds its breath while you're inside
     const playing = s.phase === 'playing'
 
     // Wave director.

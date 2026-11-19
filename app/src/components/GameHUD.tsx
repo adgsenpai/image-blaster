@@ -47,6 +47,8 @@ export function GameHUD() {
   const hitToken = useGameStore((s) => s.hitToken)
   const headshotToken = useGameStore((s) => s.headshotToken)
   const exit = useGameStore((s) => s.exit)
+  const prompt = useGameStore((s) => s.prompt)
+  const fade = useGameStore((s) => s.fade)
   const start = useGameStore((s) => s.start)
 
   const showBanner = useFlash(bannerToken, 2200)
@@ -161,6 +163,14 @@ export function GameHUD() {
           </div>
         </>
       )}
+
+      {/* door prompt + fade */}
+      {phase === 'playing' && prompt && (
+        <div className="absolute left-1/2 top-[60%] -translate-x-1/2 rounded bg-black/55 px-3 py-1.5 text-sm tracking-wide text-white/90 ring-1 ring-white/20">
+          {prompt}
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black transition-opacity duration-300" style={{ opacity: fade }} />
 
       {/* overlays */}
       {phase === 'ready' && (

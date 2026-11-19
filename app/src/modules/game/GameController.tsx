@@ -10,6 +10,7 @@ import { gameRuntime, goreApi, grenadeApi, zombieApi } from './runtime'
 import { sfx } from './sfx'
 import { WEAPONS, WEAPON_ORDER, buildViewmodel, type WeaponId } from './weapons'
 import { upgradeViewmodel } from './gunModels'
+import { roomFrame } from './DoorRoom'
 
 const WALK_SPEED = 4
 const SPRINT_MULT = 1.6
@@ -66,6 +67,44 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
 
   const spawn = useMemo(() => arenaPoint(frame, 0, 0, frame.origin.y + CHARACTER_HEIGHT / 2 + 0.3), [frame])
+  const room = useMemo(() => roomFrame(frame), [frame])
+  const doors = useMemo(() => (frame.config.doors ?? []).map((d) => ({
+    ...d,
+    // Stand on the sidewalk just in front of the door.
+    stand: arenaPoint(frame, d.u, d.v + (d.v < 0 ? 0.9 : -0.9), frame.origin.y),
+  })), [frame])
+  const activeDoor = useRef<(typeof doors)[number] | null>(null)
+  const transitioning = useRef(false)
+
+  const yawToward = (dir: THREE.Vector3) => Math.atan2(-dir.x, -dir.z)
+  const doorTransition = () => {
+    const s = useGameStore.getState()
+    if (transitioning.current || s.phase !== 'playing' || !s.prompt) return
+    transitioning.current = true
+    s.setFade(1)
+    sfx.door()
+    setTimeout(() => {
+      const st = useGameStore.getState()
+      const body = bodyRef.current
+      if (body) {
+        if (!st.indoors && activeDoor.current) {
+          body.setTranslation({ x: room.spawn.x, y: room.spawn.y, z: room.spawn.z }, true)
+          yaw.current = yawToward(new THREE.Vector3(Math.sin(room.yaw), 0, Math.cos(room.yaw)))
+          st.setIndoors(true)
+        } else if (st.indoors && activeDoor.current) {
+          const d = activeDoor.current
+          body.setTranslation({ x: d.stand.x, y: d.stand.y + CHARACTER_HEIGHT / 2 + 0.3, z: d.stand.z }, true)
+          const out = arenaPoint(frame, d.u, 0, 0).sub(arenaPoint(frame, d.u, d.v, 0)).setY(0).normalize()
+          yaw.current = yawToward(out)
+          st.setIndoors(false)
+        }
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        pitch.current = 0
+      }
+      useGameStore.getState().setFade(0)
+      transitioning.current = false
+    }, 330)
+  }
 
   // Viewmodels + lights ride on the camera.
   const rig = useMemo(() => {
@@ -271,6 +310,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         if (s.phase === 'dead') s.start()
         else startReload()
       } else if (e.code === 'KeyG') throwGrenade()
+      else if (e.code === 'KeyE') doorTransition()
       else if (e.code === 'KeyV') switchTo('knife')
       else if (e.code.startsWith('Digit') && !e.shiftKey && !e.altKey) {
         const id = WEAPON_ORDER[Number(e.code.slice(5)) - 1]
@@ -451,7 +491,28 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     body.setLinvel({ x: _move.x * speed, y: vy, z: _move.z * speed }, true)
 
     const p = body.translation()
-    if (p.y < frame.origin.y - 10) reset()
+    if (p.y < frame.origin.y - 10 && !s.indoors) reset()
+    if (s.indoors && p.y < room.center.y - 5) body.setTranslation({ x: room.spawn.x, y: room.spawn.y, z: room.spawn.z }, true)
+
+    // Door interaction prompt.
+    if (active && !transitioning.current) {
+      let prompt = ''
+      if (s.indoors) {
+        if (Math.hypot(p.x - room.exit.x, p.z - room.exit.z) < 1.8) prompt = 'E · leave'
+      } else {
+        let best = 2.3
+        activeDoor.current = null
+        for (const d of doors) {
+          const dist = Math.hypot(p.x - d.stand.x, p.z - d.stand.z)
+          if (dist < best) {
+            best = dist
+            activeDoor.current = d
+          }
+        }
+        if (activeDoor.current) prompt = `E · open door${activeDoor.current.label ? ` (${activeDoor.current.label})` : ''}`
+      }
+      s.setPrompt(prompt)
+    }
 
     const moving = _move.lengthSq() > 0.01 && active
     bob.current += delta * (moving ? (sprint ? 13 : 9) : 0)

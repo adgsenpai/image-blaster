@@ -25,6 +25,7 @@ import { GameController } from '../modules/game/GameController'
 import { Zombies } from '../modules/game/Zombies'
 import { Grenades } from '../modules/game/Grenades'
 import { Gore } from '../modules/game/Gore'
+import { DoorRoom } from '../modules/game/DoorRoom'
 import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
@@ -295,6 +296,7 @@ export function WorldViewer({
             {gameOn && gameConfig && <Zombies arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Grenades arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Gore />}
+            {gameOn && gameConfig && (gameConfig.arena.doors?.length ?? 0) > 0 && <DoorRoom arena={gameConfig.arena} />}
             {showObjects && !editing && !gameOn && (
               <Suspense fallback={null}>
                 <ObjectGrid

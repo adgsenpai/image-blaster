@@ -46,6 +46,8 @@ export interface ArenaConfig {
   spawnPoints?: { at: [number, number]; via?: [number, number] }[]
   /** Draw the fog/backdrop walls (off when a procedural stage extends the world). */
   fogWalls?: boolean
+  /** Enterable doors in street space: E opens them into a room. */
+  doors?: { u: number; v: number; label?: string }[]
 }
 
 export interface GameConfig {
@@ -77,6 +79,7 @@ const DEFAULTS = {
   spawnFront: NaN,
   spawnBack: NaN,
   fogWalls: true,
+  doors: [],
 }
 
 export function arenaFrame(config: ArenaConfig): ArenaFrame {

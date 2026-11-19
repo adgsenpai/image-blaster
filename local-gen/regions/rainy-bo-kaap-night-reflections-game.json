@@ -13,6 +13,10 @@
       { "at": [-5, 15], "via": [-5, -0.4] },
       { "at": [-22, -0.4] }
     ],
+    "doors": [
+      { "u": 4.4, "v": -4.8, "label": "#97" },
+      { "u": 1.2, "v": 4.0 }
+    ],
     "fogWalls": false,
     "wallHeight": 45,
     "wallOverhang": 30,

@@ -32,6 +32,15 @@ interface GameStore {
   headshotToken: number
   /** Increments on every (re)start so scene components can reset. */
   runToken: number
+  /** Player is inside a door room (zombies pause). */
+  indoors: boolean
+  /** Interaction prompt shown in the HUD ('' = none). */
+  prompt: string
+  /** Screen fade 0..1 for door transitions. */
+  fade: number
+  setIndoors: (v: boolean) => void
+  setPrompt: (v: string) => void
+  setFade: (v: number) => void
   enter: () => void
   exit: () => void
   start: () => void
@@ -51,6 +60,9 @@ interface GameStore {
 }
 
 const freshRun = () => ({
+  indoors: false,
+  prompt: '',
+  fade: 0,
   health: MAX_HEALTH,
   weapon: 'pistol' as WeaponId,
   ammo: fullAmmo(),
@@ -74,6 +86,12 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   hitToken: 0,
   headshotToken: 0,
   runToken: 0,
+  indoors: false,
+  prompt: '',
+  fade: 0,
+  setIndoors: (indoors) => set({ indoors }),
+  setPrompt: (prompt) => set((s) => (s.prompt === prompt ? {} : { prompt })),
+  setFade: (fade) => set({ fade }),
   enter: () => set((s) => ({ phase: 'ready', ...freshRun(), runToken: s.runToken + 1 })),
   exit: () => set({ phase: 'off', banner: '', ads: false }),
   start: () => set((s) => (s.phase === 'dead' || s.phase === 'ready'
