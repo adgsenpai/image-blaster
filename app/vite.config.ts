@@ -776,6 +776,51 @@ function worldsPlugin(): Plugin {
         res.statusCode = 204
         res.end()
       })
+      server.middlewares.use('/__game-assets', (_req, res) => {
+        // GLBs the room editor can place: CC0 game props + every world's generated objects.
+        const out: string[] = []
+        const walk = (dir: string, url: string, depth: number) => {
+          if (depth > 4 || !fs.existsSync(dir)) return
+          for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (e.name.startsWith('.')) continue
+            const p = path.join(dir, e.name)
+            if (e.isDirectory()) {
+              if (e.name === 'world' || e.name === 'stage' || e.name === 'node_modules') continue
+              walk(p, `${url}/${e.name}`, depth + 1)
+            } else if (e.name.endsWith('.glb') && !/zombie|collider/i.test(e.name)) out.push(`${url}/${e.name}`)
+          }
+        }
+        walk(path.resolve(__dirname, 'public/game'), '/game', 0)
+        if (fs.existsSync(worldsDir)) for (const slug of fs.readdirSync(worldsDir)) walk(path.join(worldsDir, slug, 'output'), `/worlds/${slug}/output`, 0)
+        res.setHeader('Cache-Control', 'no-store')
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify(out.sort()))
+      })
+      server.middlewares.use('/__game-config', (req, res) => {
+        // Room editor save: writes worlds/<slug>/game.json (+ the local-gen/regions copy if present).
+        const slug = new URL(req.url || '/', 'http://localhost').searchParams.get('slug') ?? ''
+        if (req.method !== 'POST' || !/^[a-z0-9-]+$/.test(slug)) {
+          res.statusCode = 400
+          res.end('POST ?slug=<world-slug>')
+          return
+        }
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', () => {
+          try {
+            const json = JSON.parse(body)
+            if (!json?.arena) throw new Error('not a game config')
+            const text = JSON.stringify(json, null, 2) + '\n'
+            fs.writeFileSync(path.join(worldsDir, slug, 'game.json'), text)
+            const region = path.join(repoRoot, 'local-gen', 'regions', `${slug}-game.json`)
+            if (fs.existsSync(region)) fs.writeFileSync(region, text)
+            res.end('ok')
+          } catch (err) {
+            res.statusCode = 400
+            res.end(String(err))
+          }
+        })
+      })
       server.middlewares.use('/__scene-project', (req, res) => {
         res.setHeader('Cache-Control', 'no-store')
         const requestUrl = new URL(req.url || '/', 'http://localhost')

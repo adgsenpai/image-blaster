@@ -11,6 +11,7 @@ import { isEditableTarget } from './utils/dom'
 import type { WorldEntry, WorldHoverPreview, WorldObjectAsset } from './types/world'
 import { TerminalWindowIcon } from '@phosphor-icons/react'
 import { GameHUD } from './components/GameHUD'
+import { RoomEditorPanel } from './components/RoomEditorPanel'
 import { useGameStore } from './store/game'
 
 const LevaPanel = import.meta.env.DEV
@@ -159,6 +160,7 @@ function LoadedApp({
     <div className="relative w-screen h-screen bg-black overflow-hidden select-none [&_*]:focus:outline-none [&_*]:focus-visible:outline-none [&_*]:focus:ring-0 [&_*]:focus-visible:ring-0">
       <ViewerModeHotkeys />
       {!editing && <GameHUD />}
+      {!editing && <RoomEditorPanel />}
       {!editing && LevaPanel && DebugPanel && showLeva && uiVisible && (
         <div className="hidden md:block">
           <Suspense fallback={null}>

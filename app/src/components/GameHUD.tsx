@@ -1,3 +1,4 @@
+import { useRoomEditor } from '../store/roomEditor'
 import { useEffect, useState } from 'react'
 import { MAX_HEALTH, useGameStore } from '../store/game'
 import { GRENADE_MAX, PERKS, WEAPONS, WEAPON_ORDER } from '../modules/game/weapons'
@@ -28,6 +29,7 @@ function DevReadout() {
 
 export function GameHUD() {
   const phase = useGameStore((s) => s.phase)
+  const editorOn = useRoomEditor((s) => s.on)
   const health = useGameStore((s) => s.health)
   const weapon = useGameStore((s) => s.weapon)
   const ammoByWeapon = useGameStore((s) => s.ammo)
@@ -177,7 +179,7 @@ export function GameHUD() {
       )}
 
       {/* door prompt + fade */}
-      {phase === 'playing' && prompt && (
+      {phase === 'playing' && prompt && !editorOn && (
         <div className="absolute left-1/2 top-[60%] -translate-x-1/2 rounded bg-black/55 px-3 py-1.5 text-sm tracking-wide text-white/90 ring-1 ring-white/20">
           {prompt}
         </div>

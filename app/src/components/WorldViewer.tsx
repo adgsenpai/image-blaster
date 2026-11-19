@@ -27,7 +27,7 @@ import { Zombies } from '../modules/game/Zombies'
 import { Grenades } from '../modules/game/Grenades'
 import { Gore } from '../modules/game/Gore'
 import { DoorRoom } from '../modules/game/DoorRoom'
-import { RoomProps, type RoomPropsConfig } from '../modules/game/RoomProps'
+import { RoomProps } from '../modules/game/RoomProps'
 import { Stage, type StageAssets } from '../modules/stage/Stage'
 import { WorldRenderMode, ObjectRenderMode, ViewerQuality, type Vec3Tuple, type World, type WorldHoverPreview, type WorldObjectAsset, type WorldSceneProject } from '../types/world'
 import { AppButton } from './AppButton'
@@ -305,7 +305,7 @@ export function WorldViewer({
             {gameOn && gameConfig && <Grenades arena={gameConfig.arena} />}
             {gameOn && gameConfig && <Gore />}
             {gameOn && gameConfig && (gameConfig.arena.doors?.length ?? 0) > 0 && !roomCfg && <DoorRoom arena={gameConfig.arena} />}
-            {gameOn && Boolean(roomCfg?.props) && gameConfig && roomCfg && <RoomProps arena={gameConfig.arena} props={roomCfg.props as RoomPropsConfig} />}
+            {gameOn && gameConfig && roomCfg && <RoomProps slug={desiredSlug} config={gameConfig} />}
             {gameOn && roomCfg?.collider && roomCenter && (
               <OptionalAssetBoundary label={roomCfg.collider} resetKey={roomCfg.collider}>
                 <Suspense fallback={null}>

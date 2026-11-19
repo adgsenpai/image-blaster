@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useRoomEditor } from '../../store/roomEditor'
 import { createPortal, useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier } from '@react-three/rapier'
 import * as THREE from 'three'
@@ -75,7 +76,8 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     stand: arenaPoint(frame, d.u, d.v + (d.v < 0 ? 0.9 : -0.9), frame.origin.y),
   })), [frame])
   const activeDoor = useRef<(typeof doors)[number] | null>(null)
-  const shopSpots = useMemo(() => (frame.config.shop ?? []).map((sp) => ({ ...sp, world: room.toWorld(...sp.at) })), [frame, room])
+  const editVersion = useRoomEditor((s) => s.version)
+  const shopSpots = useMemo(() => (frame.config.shop ?? []).map((sp) => ({ ...sp, world: room.toWorld(...sp.at) })), [frame, room, editVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const activeShop = useRef<(typeof shopSpots)[number] | null>(null)
   /** Weapon rack menu: F cycles, E buys. */
   const RACK: ('ammo' | WeaponId)[] = ['magnum', 'shotgun', 'mg', 'sniper', 'ammo']
@@ -389,6 +391,27 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
         return
       }
       keys.current.add(e.code)
+      const ed = useRoomEditor.getState()
+      if (e.code === 'F2') {
+        e.preventDefault()
+        if (e.repeat) return
+        const s0 = useGameStore.getState()
+        if (ed.on) {
+          ed.toggle(false)
+          s0.pause()
+        } else if (s0.indoors && s0.phase === 'playing') {
+          ed.toggle(true)
+          if (locked()) document.exitPointerLock()
+        }
+        return
+      }
+      if (ed.on) {
+        if (e.code === 'Escape') {
+          ed.toggle(false)
+          useGameStore.getState().pause()
+        }
+        return
+      }
       if (e.repeat) return
       const s = useGameStore.getState()
       if (e.code === 'Space') jumpQueued.current = true
@@ -410,6 +433,12 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault()
     }
     const onMouseMove = (e: MouseEvent) => {
+      if (useRoomEditor.getState().on) {
+        if (!lookDrag.current) return
+        yaw.current -= e.movementX * 0.0035
+        pitch.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch.current - e.movementY * 0.0035))
+        return
+      }
       if (!locked()) return
       if ((e.buttons & 1) === 0) triggerHeld.current = false
       if ((e.buttons & 2) === 0) aimHeld.current = false
@@ -420,6 +449,10 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       pitch.current = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch.current))
     }
     const onMouseDown = (e: MouseEvent) => {
+      if (useRoomEditor.getState().on) {
+        if (e.button === 2) lookDrag.current = true
+        return
+      }
       const s = useGameStore.getState()
       if (!locked()) {
         if (e.target !== el) return
@@ -448,10 +481,13 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     }
     const onMouseUp = (e: MouseEvent) => {
       if (e.button === 0) triggerHeld.current = false
-      if (e.button === 2) aimHeld.current = false
+      if (e.button === 2) {
+        aimHeld.current = false
+        lookDrag.current = false
+      }
     }
     const onWheel = (e: WheelEvent) => {
-      if (!locked() && !noLock.current) return
+      if ((!locked() && !noLock.current) || useRoomEditor.getState().on) return
       const s = useGameStore.getState()
       const owned = WEAPON_ORDER.filter((w) => s.owned.includes(w))
       const i = owned.indexOf(s.weapon)
@@ -462,7 +498,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       if (e.target === el) e.preventDefault()
     }
     const onLockChange = () => {
-      if (!locked() && !noLock.current) {
+      if (!locked() && !noLock.current && !useRoomEditor.getState().on) {
         triggerHeld.current = false
         aimHeld.current = false
         keys.current.clear()
@@ -549,6 +585,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
   }), [])
   const heartbeat = useRef(0)
   const sinceHurt = useRef(99)
+  const lookDrag = useRef(false)
   useEffect(() => useGameStore.subscribe((st, prev) => {
     if (st.hurtToken !== prev.hurtToken) sinceHurt.current = 0
   }), [])
@@ -689,7 +726,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     for (const id of WEAPON_ORDER) if (id !== shownWeapon.current) rig.models[id].root.visible = false
     const shown = WEAPONS[shownWeapon.current]
     const vm = rig.models[shownWeapon.current]
-    vm.root.visible = !(shown.scope && adsBlend.current > 0.8)
+    vm.root.visible = !(shown.scope && adsBlend.current > 0.8) && !useRoomEditor.getState().on
     recoil.current = Math.max(0, recoil.current - delta * 9)
     flash.current = Math.max(0, flash.current - delta * 22)
     swing.current = Math.max(0, swing.current - delta * 3.2)

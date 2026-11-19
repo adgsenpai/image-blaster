@@ -24,9 +24,9 @@ the config lives in `local-gen/regions/rainy-bo-kaap-night-reflections-game.json
       wood wainscot + plaster texture matching the room's red/brown palette, a real double door with a lit green
       EXIT sign above it and a wall lamp, and boarded windows either side. Move the exit hotspot to that door. Drop the old
       RoomBarricade if it's redundant.
-- [ ] 4. **Walk limits.** Invisible colliders keep the player inside the well-scanned zone (between the back wall and the
+- [x] 4. **Walk limits.** Invisible colliders keep the player inside the well-scanned zone (between the back wall and the
       counter, x within the side walls), so no one can walk into a floating splat or out of the room.
-- [ ] 5. **In-game room editor (CAD-like).** Toggle with `F2` while indoors and paused-safe:
+- [x] 5. **In-game room editor (CAD-like).** Toggle with `F2` while indoors and paused-safe:
       - click a room prop to select it; TransformControls (drei) for translate / rotate (`W`/`R`), snap with Shift
       - prop palette: add vending machines, sign, board, crates, sandbag walls, planks, lamps, barrels, and any
         CC0 GLBs in `app/public/game/` (zombie excluded), plus the world's generated object GLBs

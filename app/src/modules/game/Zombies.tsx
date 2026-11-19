@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useRoomEditor } from '../../store/roomEditor'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from '../../store/game'
@@ -342,6 +343,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
     const delta = Math.min(rawDelta, 0.05)
     const s = useGameStore.getState()
     if (s.phase !== 'playing' && s.phase !== 'dead') return
+    if (useRoomEditor.getState().on) return // world frozen while editing the room
     if (s.indoors) return // the street holds its breath while you're inside
     const playing = s.phase === 'playing'
 
