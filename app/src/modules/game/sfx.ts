@@ -13,7 +13,47 @@ function audio() {
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
   }
   if (ctx.state === 'suspended') void ctx.resume()
+  loadSamples(ctx)
   return ctx
+}
+
+/** Recorded samples (see public/game/CREDITS.txt); synth is the fallback. */
+const SAMPLE_URLS = {
+  pistol: '/game/sfx/pistol.ogg',
+  mg: '/game/sfx/rifle.ogg',
+  sniper: '/game/sfx/sniper.ogg',
+  reloadPistol: '/game/sfx/reload_pistol.ogg',
+  reloadRifle: '/game/sfx/reload_rifle.ogg',
+} as const
+type SampleId = keyof typeof SAMPLE_URLS
+const samples: Partial<Record<SampleId, AudioBuffer>> = {}
+let samplesRequested = false
+
+function loadSamples(ac: AudioContext) {
+  if (samplesRequested) return
+  samplesRequested = true
+  for (const [id, url] of Object.entries(SAMPLE_URLS) as [SampleId, string][]) {
+    fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((b) => ac.decodeAudioData(b))
+      .then((buf) => {
+        samples[id] = buf
+      })
+      .catch(() => {})
+  }
+}
+
+function playSample(ac: AudioContext, id: SampleId, gain = 0.8, rate = 1) {
+  const buf = samples[id]
+  if (!buf) return false
+  const src = ac.createBufferSource()
+  src.buffer = buf
+  src.playbackRate.value = rate * (0.96 + Math.random() * 0.08)
+  const g = ac.createGain()
+  g.gain.value = gain
+  src.connect(g).connect(ac.destination)
+  src.start()
+  return true
 }
 
 function noise(ac: AudioContext, duration: number, filterHz: number, gain: number, type: BiquadFilterType = 'lowpass') {
@@ -49,6 +89,7 @@ export const sfx = {
   shot(kind: 'pistol' | 'mg' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
+    if (kind !== 'knife' && playSample(ac, kind, kind === 'mg' ? 0.55 : 0.8)) return
     if (kind === 'sniper') {
       noise(ac, 0.6, 1800, 0.8)
       noise(ac, 0.12, 8000, 0.35, 'highpass')
@@ -87,9 +128,10 @@ export const sfx = {
     if (!ac) return
     tone(ac, 'square', 1800, 1200, 0.03, 0.08)
   },
-  reload() {
+  reload(kind: 'pistol' | 'mg' | 'sniper' | 'knife' = 'pistol') {
     const ac = audio()
     if (!ac) return
+    if (kind !== 'knife' && playSample(ac, kind === 'pistol' ? 'reloadPistol' : 'reloadRifle', 0.7)) return
     tone(ac, 'square', 900, 600, 0.04, 0.07)
     tone(ac, 'square', 700, 1100, 0.05, 0.07, 0.9)
   },

@@ -127,7 +127,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
     if (!def.mag || s.reloading || s.ammo[s.weapon] === def.mag || switchLeft.current > 0) return
     reloadLeft.current = def.reload
     s.setReloading(true)
-    sfx.reload()
+    sfx.reload(def.id)
   }
 
   const switchTo = (id: WeaponId) => {
