@@ -278,7 +278,7 @@ export function GameController({ arena, street }: { arena: ArenaConfig; street?:
       if (id === undefined || seen.has(id)) continue
       seen.add(id)
       const headshot = Boolean(h.object.userData.head)
-      zombieApi.damage?.({ zombieId: id, headshot, point: h.point }, headshot ? def.headDamage : def.bodyDamage)
+      zombieApi.damage?.({ zombieId: id, headshot, point: h.point, part: h.object.userData.part }, headshot ? def.headDamage : def.bodyDamage)
       landed = true
       headshotLanded ||= headshot
       if (!def.pierce) break

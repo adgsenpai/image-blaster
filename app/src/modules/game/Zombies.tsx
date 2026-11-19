@@ -5,7 +5,7 @@ import { useGameStore } from '../../store/game'
 import { arenaFrame, arenaLocal, arenaPoint, type ArenaConfig, type ArenaFrame } from './arena'
 import { gameRuntime, goreApi, zombieApi, type ZombieHit } from './runtime'
 import { sfx } from './sfx'
-import { applySevered, boneWorld, createModelZombie, loadZombieTemplate, playClip, sever, syncHitboxes, zombieTemplateReady, type ModelZombie } from './zombieModel'
+import { setHitboxDebug, applySevered, boneWorld, createModelZombie, loadZombieTemplate, playClip, sever, syncHitboxes, zombieTemplateReady, type ModelZombie } from './zombieModel'
 
 const SKIN = ['#7f8f6a', '#8c9774', '#6e7c5c', '#8a8a6a']
 const SHIRT = ['#3a2f2c', '#2d3a4a', '#4a3a28', '#5a2626', '#3c4a34', '#55504a']
@@ -194,7 +194,6 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
   useEffect(() => {
     const SKIN = new THREE.Color('#6f7d5a')
     const _dir = new THREE.Vector3()
-    const _lp = new THREE.Vector3()
     const kill = (z: Zombie, points: number, push?: THREE.Vector3) => {
       z.dying = 0.0001
       if (push) z.deathVel.copy(push)
@@ -221,8 +220,6 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         // Lost a leg: drop and crawl, RE2 style.
         z.crawling = true
         z.speed *= 0.45
-        z.anim.bodyBox.scale.set(1, 0.4, 1.6)
-        z.anim.bodyBox.position.y = 0.28
       }
     }
     zombieApi.damage = (hit: ZombieHit, amount: number) => {
@@ -235,18 +232,13 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
       goreApi.spray?.(hit.point, dir, hit.headshot ? 34 : 14, hit.headshot ? 3 : 2)
       if (z.anim) {
         if (z.hp > 0 && !z.crawling) z.stagger = 0.3
-        _lp.copy(hit.point)
-        z.root.worldToLocal(_lp)
-        const side = _lp.x > 0 ? 'L' : 'R'
+        const part = hit.part ?? (hit.headshot ? 'head' : 'torso')
         if (hit.headshot && z.hp <= 0) popHead(z, dir)
-        else if (!hit.headshot && _lp.y < 0.8) {
-          const k = `leg${side}`
-          z.limbDmg[k] = (z.limbDmg[k] ?? 0) + amount
-          if (z.limbDmg[k] >= 1.5) severLimb(z, `UpperLeg.${side}`, 'leg', dir)
-        } else if (!hit.headshot && _lp.y > 0.95 && _lp.y < 1.5 && Math.abs(_lp.x) > 0.16) {
-          const k = `arm${side}`
-          z.limbDmg[k] = (z.limbDmg[k] ?? 0) + amount
-          if (z.limbDmg[k] >= 1.5) severLimb(z, `UpperArm.${side}`, 'arm', dir)
+        else if (part === 'legL' || part === 'legR' || part === 'armL' || part === 'armR') {
+          z.limbDmg[part] = (z.limbDmg[part] ?? 0) + amount
+          const side = part.endsWith('L') ? 'L' : 'R'
+          const isLeg = part.startsWith('leg')
+          if (z.limbDmg[part] >= 1.5) severLimb(z, `${isLeg ? "UpperLeg" : "UpperArm"}${side}`, isLeg ? 'leg' : 'arm', dir)
         }
       }
       // Knock back a little along the shot.
@@ -268,7 +260,7 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         goreApi.spray?.(z.root.position.clone().setY(z.root.position.y + 1), dir, 40, 4)
         if (z.anim && d < radius * 0.7) {
           // Close to the blast: tear limbs off.
-          for (const [bone, kind] of [['UpperArm.L', 'arm'], ['UpperArm.R', 'arm'], ['UpperLeg.L', 'leg'], ['UpperLeg.R', 'leg']] as const) {
+          for (const [bone, kind] of [['UpperArmL', 'arm'], ['UpperArmR', 'arm'], ['UpperLegL', 'leg'], ['UpperLegR', 'leg']] as const) {
             if (Math.random() < 0.45) severLimb(z, bone, kind, dir)
           }
           if (z.hp <= 0 && Math.random() < 0.5) popHead(z, dir)
@@ -327,6 +319,18 @@ export function Zombies({ arena }: { arena: ArenaConfig }) {
         return z.id
       },
       count: () => zombies.current.filter((z) => z.dying === 0).length,
+      hitboxes: (on: boolean) => setHitboxDebug(on),
+      debug: () => {
+        const z = zombies.current.find((zz) => zz.anim && zz.dying === 0)
+        if (!z?.anim) return null
+        const w = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3()).toArray().map((n) => +n.toFixed(2))
+        return {
+          root: w(z.root), head: w(z.anim.headBox), headScale: z.anim.headBox.scale.x, body: w(z.anim.bodyBox), bodyScale: z.anim.bodyBox.scale.toArray().map((n) => +n.toFixed(2)),
+          limbs: z.anim.limbBoxes.map((l) => [l.part, w(l.mesh), +l.mesh.scale.y.toFixed(2)]),
+          bones: Object.keys(z.anim.bones).length,
+          headBone: z.anim.bones.Head ? w(z.anim.bones.Head) : null,
+        }
+      },
     }
     return () => {
       delete w.__zombies

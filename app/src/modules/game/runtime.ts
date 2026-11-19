@@ -18,6 +18,8 @@ export interface ZombieHit {
   zombieId: number
   headshot: boolean
   point: THREE.Vector3
+  /** Body part hit (bone-driven hitboxes): head / torso / armL / armR / legL / legR. */
+  part?: string
 }
 
 /** Implemented by <Zombies>, called by weapons. */
